@@ -6,7 +6,13 @@ export async function request(path, options = {}) {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(localStorage.getItem("kgipToken")
+          ? { Authorization: `Bearer ${localStorage.getItem("kgipToken")}` }
+          : {}),
+        ...(options.headers || {}),
+      },
     });
   } catch {
     throw new Error(
