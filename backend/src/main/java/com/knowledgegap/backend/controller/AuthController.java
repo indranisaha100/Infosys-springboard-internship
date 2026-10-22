@@ -67,6 +67,7 @@ public class AuthController {
             response.put("type", "Bearer");
             response.put("email", user.getEmail());
             response.put("firstName", user.getFirstName());
+            response.put("lastName", user.getLastName());
             response.put("role", user.getRole());
 
             return ResponseEntity.ok(response);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { request } from "../services/api";
 
 const navigation = [
   ["dashboard", "Dashboard"], ["skills", "My Skills"], ["gaps", "Knowledge Gaps"], ["learning", "Learning"],
@@ -49,14 +50,77 @@ function StatCard({ icon, label, value, note, tone }) {
   );
 }
 
+function SectionPage({ activeItem, data, loading }) {
+  const titles = {
+    "My Skills": "Track your capabilities and role readiness.",
+    "Knowledge Gaps": "Prioritize the skills that will have the biggest impact.",
+    Learning: "Continue building the skills that matter to your role.",
+    Notifications: "Stay up to date with your SkillTrack workspace.",
+    Reports: "Review your latest skill and readiness reports.",
+    "My Profile": "Manage your employee profile information.",
+    Settings: "Manage your workspace preferences.",
+  };
+  return (
+    <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+      <div className="mb-5">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / {activeItem}</p>
+        <h1 className="m-0 text-2xl font-medium text-blue-950">{activeItem}</h1>
+        <p className="mt-2 text-xs text-slate-500">{titles[activeItem]}</p>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        {loading ? <p className="text-sm text-slate-500">Loading from the employee workspace...</p> : (
+          <>
+            <p className="text-sm text-blue-950">{data?.message || "Connected to the employee workspace."}</p>
+            {data?.nextAction && <div className="mt-5 rounded-lg bg-blue-50 p-4 text-xs text-blue-800"><strong>Next action</strong><p className="mt-1">{data.nextAction}</p></div>}
+            {data?.user && <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Name</strong><p className="mt-1 text-slate-600">{data.user.firstName} {data.user.lastName || ""}</p></div><div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Email</strong><p className="mt-1 text-slate-600">{data.user.email}</p></div></div>}
+            {data?.items && <div className="mt-5 grid gap-3 sm:grid-cols-2">{data.items.map((item) => <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-blue-900" key={item}>{item}<span className="float-right text-blue-500">→</span></div>)}</div>}
+            {!data?.items && !data?.user && !data?.nextAction && <div className="mt-5 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">This workspace page is connected and ready for your employee data.</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [user] = useState(() => JSON.parse(localStorage.getItem("kgipUser") || "null"));
   const [activeItem, setActiveItem] = useState("Dashboard");
+  const [sectionData, setSectionData] = useState(null);
+  const [sectionLoading, setSectionLoading] = useState(false);
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
+    else request("/employee/dashboard").catch(() => {
+      setSectionData({ message: "Dashboard data could not be refreshed from the server." });
+    });
   }, [navigate, user]);
+
+  async function selectSection(label) {
+    setActiveItem(label);
+    if (label === "Dashboard") {
+      setSectionData(null);
+      return;
+    }
+    setSectionLoading(true);
+    const sectionKeys = {
+      "My Skills": "skills",
+      "Knowledge Gaps": "gaps",
+      Learning: "learning",
+      Notifications: "notifications",
+      Reports: "reports",
+      "My Profile": "profile",
+      Settings: "settings",
+    };
+    try {
+      const data = await request(`/employee/sections/${sectionKeys[label]}`);
+      setSectionData(data);
+    } catch (error) {
+      setSectionData({ message: error.message });
+    } finally {
+      setSectionLoading(false);
+    }
+  }
 
   function signOut() {
     localStorage.removeItem("kgipToken");
@@ -77,12 +141,15 @@ export default function DashboardPage() {
         <p className="mb-2 mt-9 px-4 text-[10px] font-bold uppercase tracking-[1.2px] text-blue-300 max-[650px]:hidden">Employee workspace</p>
         <nav className="grid gap-1" aria-label="Employee workspace">
           {navigation.map(([icon, label]) => (
-            <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#315fae] text-white" : "text-blue-200 hover:bg-[#315fae]"}`} key={label} onClick={() => setActiveItem(label)}>
+            <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#315fae] text-white" : "text-blue-200 hover:bg-[#315fae]"}`} key={label} onClick={() => selectSection(label)}>
               <Icon name={icon} className="h-[18px] w-[18px] shrink-0" /><span className="max-[650px]:hidden">{label}</span>
               {label === "Notifications" && <b className="ml-auto grid h-[18px] w-[18px] place-items-center rounded-full bg-rose-500 text-[10px] text-white">3</b>}
             </button>
           ))}
         </nav>
+        <button className="mt-4 flex items-center gap-3 rounded-lg border border-blue-200/20 px-3 py-2.5 text-left text-sm text-blue-200 hover:bg-rose-500/20 hover:text-white max-[650px]:justify-center" onClick={signOut}>
+          <span className="text-lg">↪</span><span className="max-[650px]:hidden">Log out</span>
+        </button>
         <div className="mt-auto rounded-lg border border-blue-200/20 bg-blue-900/40 p-3.5 max-[650px]:hidden">
           <span className="mb-2 grid h-7 w-7 place-items-center rounded-md bg-blue-900 text-white"><Icon name="learning" className="h-4 w-4" /></span><strong className="text-[13px]">Need a hand?</strong>
           <p className="my-2.5 text-[11px] text-blue-200">Explore the SkillTrack guide</p><button className="text-[11px] text-white">View help center <span>→</span></button>
@@ -95,13 +162,12 @@ export default function DashboardPage() {
           <div className="ml-auto flex items-center gap-3">
             <div className="flex h-[38px] w-[307px] items-center gap-2 rounded-lg border border-slate-200 px-2.5 text-slate-400 max-[900px]:w-[220px] max-[650px]:w-[150px]"><span>⌕</span><input className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[11px] text-blue-950 outline-none" placeholder="Search skills, people or reports..." aria-label="Search" /><kbd className="whitespace-nowrap rounded border border-slate-200 px-1 text-[10px] max-[650px]:hidden">⌘ K</kbd></div>
             <button className="relative grid h-[38px] w-[38px] place-items-center rounded-lg border border-slate-200 bg-white text-slate-500" aria-label="Notifications"><Icon name="bell" className="h-[18px] w-[18px]" /><b className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[9px] text-white">3</b></button>
-            <button className="grid grid-cols-[34px_95px_12px] grid-rows-2 gap-x-2 border-0 bg-transparent text-left max-[650px]:grid-cols-[30px_12px]" onClick={() => setActiveItem("My Profile")}>
+            <button className="grid grid-cols-[34px_95px_12px] grid-rows-2 gap-x-2 border-0 bg-transparent text-left max-[650px]:grid-cols-[30px_12px]" onClick={() => selectSection("My Profile")}>
               <span className="row-span-2 grid place-items-center rounded-lg border border-blue-200 bg-blue-50 text-[11px] font-bold text-blue-600">{initials}</span><strong className="text-[11px] max-[650px]:hidden">{firstName} {user.lastName || ""}</strong><small className="text-[9px] text-slate-400 max-[650px]:hidden">Product Designer</small><i className="col-start-3 row-span-2 self-center text-slate-400">⌄</i>
             </button>
           </div>
         </header>
-
-        <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
+        {activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>
             <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2"><span className="grid h-[38px] w-[38px] place-items-center rounded-full border-4 border-emerald-500 border-l-emerald-100 text-[11px] font-bold text-emerald-600">78</span><div><small className="block text-[8px] uppercase tracking-wide text-slate-400">Overall readiness</small><strong className="my-0.5 block text-[10px] text-blue-600">Strong foundation</strong><em className="block text-[8px] not-italic text-emerald-600">Up 6% this quarter</em></div></div>
@@ -131,8 +197,7 @@ export default function DashboardPage() {
               </table>
             </div>
           </section>
-        </div>
-        <button className="fixed bottom-4 right-4 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[10px] text-slate-500" onClick={signOut}>Sign out</button>
+        </div>}
       </section>
     </main>
   );
