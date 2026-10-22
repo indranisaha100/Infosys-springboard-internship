@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
-import { request } from "../services/api";
+import { request, saveSession } from "../services/api";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -38,8 +38,16 @@ export default function RegisterPage() {
             ? { "X-Admin-Registration-Key": adminKey }
             : {},
       });
-      navigate("/login", {
-        state: { message: "Account created. Sign in to continue." },
+      const user = await request("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
+      });
+      saveSession(user);
+      navigate(user.role === "ROLE_EMPLOYEE" ? "/employee-dashboard" : "/dashboard", {
+        replace: true,
       });
     } catch (requestError) {
       setError(requestError.message);

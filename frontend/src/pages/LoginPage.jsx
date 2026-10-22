@@ -21,7 +21,7 @@ export default function LoginPage() {
         body: JSON.stringify(form),
       });
       saveSession(user);
-      navigate("/dashboard");
+      navigate(user.role === "ROLE_EMPLOYEE" ? "/employee-dashboard" : "/dashboard");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
