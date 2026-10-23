@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { request } from "../services/api";
+import SkillAssessment from "../../../skill-assessment/SkillAssessment";
+import { loadResult, scoreByTopic } from "../../../skill-assessment/skillAssessmentData";
 
 const navigation = [
-  ["dashboard", "Dashboard"], ["skills", "My Skills"], ["gaps", "Knowledge Gaps"], ["learning", "Learning"],
+  ["dashboard", "Dashboard"], ["skills", "My Skills"], ["assessment", "Skill Assessment"], ["gaps", "Knowledge Gaps"], ["learning", "Learning"],
   ["bell", "Notifications"], ["report", "Reports"], ["profile", "My Profile"], ["settings", "Settings"],
 ];
 const gaps = [
@@ -12,17 +14,11 @@ const gaps = [
   { name: "Data-Informed", current: 68, required: 73 },
   { name: "Stakeholder", current: 70, required: 73 },
 ];
-const assessments = [
-  ["PR", "Product Strategy", 78, 90, "-12%", "Medium", "orange"],
-  ["AD", "Advanced Prototyping", 62, 90, "-28%", "High", "red"],
-  ["DA", "Data-Informed Design", 68, 85, "-17%", "Medium", "orange"],
-  ["ST", "Stakeholder Management", 82, 85, "-3%", "Low", "green"],
-];
-
 function Icon({ name, className = "h-5 w-5" }) {
   const paths = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
     skills: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
+    assessment: <><path d="m8 12 2.5 2.5L16 9" /><circle cx="12" cy="12" r="9" /></>,
     gaps: <><path d="M4 18V6M4 18h16M7 14l3-4 3 2 5-7" /></>,
     learning: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h8M8 15h5" /></>,
     bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
@@ -88,6 +84,7 @@ export default function DashboardPage() {
   const [activeItem, setActiveItem] = useState("Dashboard");
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
+  const [assessmentResult, setAssessmentResult] = useState(loadResult);
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
@@ -100,6 +97,13 @@ export default function DashboardPage() {
     setActiveItem(label);
     if (label === "Dashboard") {
       setSectionData(null);
+      setAssessmentResult(loadResult());
+      return;
+    }
+    if (label === "Skill Assessment") {
+      setAssessmentResult(loadResult());
+      setSectionData(null);
+      setSectionLoading(false);
       return;
     }
     setSectionLoading(true);
@@ -130,6 +134,16 @@ export default function DashboardPage() {
   if (!user) return null;
   const firstName = user.firstName || user.email?.split("@")[0] || "there";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AM";
+  const assessmentScores = assessmentResult ? scoreByTopic(assessmentResult.questions, assessmentResult.answers) : [];
+  const assessmentRows = assessmentScores.map((score) => {
+    const current = Math.round((score.right / score.total) * 100);
+    const required = Math.round((score.target / score.total) * 100);
+    const difference = current - required;
+    const priority = difference >= 0 ? "Low" : score.right === 0 ? "High" : "Medium";
+    const tone = priority === "Low" ? "green" : priority === "High" ? "red" : "orange";
+    const code = { Java: "JV", SQL: "SQ", React: "RE", "Problem Solving": "PS", "REST APIs": "API", "Git and Version Control": "GIT" }[score.topic];
+    return [code, score.topic, current, required, `${difference > 0 ? "+" : ""}${difference}%`, priority, tone];
+  });
 
   return (
     <main className="flex min-h-screen bg-slate-50 font-sans text-blue-950">
@@ -167,11 +181,29 @@ export default function DashboardPage() {
             </button>
           </div>
         </header>
-        {activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
+        {activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+          <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
+          <SkillAssessment onComplete={() => setAssessmentResult(loadResult())} />
+        </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>
-            <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2"><span className="grid h-[38px] w-[38px] place-items-center rounded-full border-4 border-emerald-500 border-l-emerald-100 text-[11px] font-bold text-emerald-600">78</span><div><small className="block text-[8px] uppercase tracking-wide text-slate-400">Overall readiness</small><strong className="my-0.5 block text-[10px] text-blue-600">Strong foundation</strong><em className="block text-[8px] not-italic text-emerald-600">Up 6% this quarter</em></div></div>
+            <div className="flex items-center gap-3 max-[650px]:w-full max-[650px]:flex-wrap">
+              <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2"><span className="grid h-[38px] w-[38px] place-items-center rounded-full border-4 border-emerald-500 border-l-emerald-100 text-[11px] font-bold text-emerald-600">78</span><div><small className="block text-[8px] uppercase tracking-wide text-slate-400">Overall readiness</small><strong className="my-0.5 block text-[10px] text-blue-600">Strong foundation</strong><em className="block text-[8px] not-italic text-emerald-600">Up 6% this quarter</em></div></div>
+              <button className="rounded-lg bg-blue-500 px-3.5 py-3 text-[10px] font-bold text-white hover:bg-blue-600" onClick={() => selectSection("Skill Assessment")}>
+                {assessmentResult ? "Review assessment" : "Take skill assessment"} <span className="ml-2">→</span>
+              </button>
+            </div>
           </div>
+          {assessmentResult && (() => {
+            const totalRight = assessmentScores.reduce((sum, score) => sum + score.right, 0);
+            const totalQuestions = assessmentScores.reduce((sum, score) => sum + score.total, 0);
+            const metTargets = assessmentScores.filter((score) => score.right >= score.target).length;
+            const scorePercent = totalQuestions ? Math.round((totalRight / totalQuestions) * 100) : 0;
+            return <article className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+              <div><p className="m-0 text-[10px] font-bold uppercase tracking-wide text-blue-500">Latest skill assessment</p><p className="mb-0 mt-1 text-xs text-blue-950">{metTargets} of {assessmentScores.length} skill areas at target · Completed {new Date(assessmentResult.submittedAt).toLocaleDateString()}</p></div>
+              <div className="flex items-center gap-3"><strong className="text-lg text-blue-950">{scorePercent}%</strong><button className="text-[10px] font-semibold text-blue-600 hover:text-blue-800" onClick={() => selectSection("Skill Assessment")}>View recommendations →</button></div>
+            </article>;
+          })()}
           <div className="mt-5 grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[650px]:gap-2">
             <StatCard icon={<Icon name="skills" className="h-5 w-5" />} tone="blue" label="Total skills" value="24" note="Across 5 categories" /><StatCard icon={<Icon name="gaps" className="h-5 w-5" />} tone="orange" label="Skills to improve" value="6" note="2 are high priority" /><StatCard icon={<Icon name="learning" className="h-5 w-5" />} tone="purple" label="Learning progress" value="68%" note="+12% this month" /><StatCard icon={<span className="text-xl">✓</span>} tone="green" label="Completed trainings" value="12" note="3 this quarter" />
           </div>
@@ -187,13 +219,13 @@ export default function DashboardPage() {
           </div>
           <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <div><h2 className="m-0 text-sm font-medium">Skill assessment overview</h2><p className="mt-1 text-[10px] text-slate-500">Latest results from your role-based assessment</p></div>
-              <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[9px] text-blue-950">View all skills</button>
+              <div><h2 className="m-0 text-sm font-medium">Skill assessment overview</h2><p className="mt-1 text-[10px] text-slate-500">{assessmentResult ? "Latest results from your skill assessment" : "Complete an assessment to see your scores and skill gaps"}</p></div>
+              <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[9px] text-blue-950" onClick={() => selectSection("Skill Assessment")}>View assessment</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left text-[10px]">
                 <thead className="border-b border-slate-200 bg-slate-50 text-[9px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Skill</th><th className="px-4 py-3">Current level</th><th className="px-4 py-3">Required</th><th className="px-4 py-3">Gap</th><th className="px-4 py-3">Priority</th><th className="px-4 py-3">Action</th></tr></thead>
-                <tbody>{assessments.map(([code, name, current, required, gap, priority, tone]) => <tr className="border-b border-slate-200 last:border-0" key={name}><td className="px-4 py-3 font-semibold text-blue-950"><span className="mr-2 inline-grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-[8px] font-normal text-blue-600">{code}</span>{name}</td><td className="px-4 py-3"><span className="mr-2 inline-block h-1 w-14 rounded bg-slate-200 align-middle"><span className="block h-full rounded bg-blue-500" style={{ width: `${current}%` }} /></span><b>{current}%</b></td><td className="px-4 py-3 text-slate-500">{required}%</td><td className="px-4 py-3 font-semibold text-blue-950">{gap}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[8px] ${tone === "red" ? "bg-red-50 text-red-500" : tone === "green" ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{priority}</span></td><td className="px-4 py-3 text-blue-500">Improve&nbsp; →</td></tr>)}</tbody>
+                <tbody>{assessmentRows.length ? assessmentRows.map(([code, name, current, required, gap, priority, tone]) => <tr className="border-b border-slate-200 last:border-0" key={name}><td className="px-4 py-3 font-semibold text-blue-950"><span className="mr-2 inline-grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-[8px] font-normal text-blue-600">{code}</span>{name}</td><td className="px-4 py-3"><span className="mr-2 inline-block h-1 w-14 rounded bg-slate-200 align-middle"><span className="block h-full rounded bg-blue-500" style={{ width: `${current}%` }} /></span><b>{current}%</b></td><td className="px-4 py-3 text-slate-500">{required}%</td><td className="px-4 py-3 font-semibold text-blue-950">{gap}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[8px] ${tone === "red" ? "bg-red-50 text-red-500" : tone === "green" ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{priority}</span></td><td className="px-4 py-3 text-blue-500">{priority === "Low" ? "Keep growing" : "Improve"}&nbsp; →</td></tr>) : <tr><td className="px-4 py-6 text-center text-slate-500" colSpan={6}>Your assessment results will appear here after you complete the skill assessment.</td></tr>}</tbody>
               </table>
             </div>
           </section>
