@@ -1,10 +1,13 @@
 package com.knowledgegap.backend.controller;
 
 import com.knowledgegap.backend.model.User;
+import com.knowledgegap.backend.model.RecommendationScoresRequest;
 import com.knowledgegap.backend.repository.UserRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
+import com.knowledgegap.backend.service.GeminiRecommendationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,10 +20,13 @@ import java.util.Optional;
 public class EmployeeController {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final GeminiRecommendationService geminiRecommendationService;
 
-    public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider) {
+    public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
+            GeminiRecommendationService geminiRecommendationService) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.geminiRecommendationService = geminiRecommendationService;
     }
 
     @GetMapping("/dashboard")
@@ -46,6 +52,37 @@ public class EmployeeController {
                         assessment("AD", "Advanced Prototyping", 62, 90, "-28%", "High"),
                         assessment("DA", "Data-Informed Design", 68, 85, "-17%", "Medium"),
                         assessment("ST", "Stakeholder Management", 82, 85, "-3%", "Low"))));
+    }
+
+    @PostMapping("/recommendations/skills")
+    public ResponseEntity<?> recommendations(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody(required = false) RecommendationScoresRequest request) {
+        Optional<User> user = authenticatedUser(authorization);
+        if (user.isEmpty()) return unauthorized();
+        if (request == null || request.getScores() == null || request.getScores().isEmpty()
+                || request.getScores().stream().anyMatch(score -> score == null
+                        || score.getTopic() == null || score.getTopic().isBlank()
+                        || score.getTotal() <= 0 || score.getRight() < 0
+                        || score.getRight() > score.getTotal() || score.getTarget() < 0
+                        || score.getTarget() > score.getTotal())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Valid assessment topic scores are required."));
+        }
+
+        User employee = user.get();
+        String employeeName = ((employee.getFirstName() == null ? "" : employee.getFirstName()) + " "
+                + (employee.getLastName() == null ? "" : employee.getLastName())).trim();
+        if (employeeName.isBlank()) employeeName = employee.getEmail();
+
+        try {
+            return ResponseEntity.ok(geminiRecommendationService.generateSkillRecommendations(
+                    employeeName, request.getScores()));
+        } catch (ResponseStatusException exception) {
+            String message = exception.getReason() == null
+                    ? "Recommendations could not be generated. Please try again."
+                    : exception.getReason();
+            return ResponseEntity.status(exception.getStatusCode()).body(Map.of("message", message));
+        }
     }
 
     @GetMapping("/sections/{section}")
