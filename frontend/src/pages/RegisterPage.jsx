@@ -46,9 +46,14 @@ export default function RegisterPage() {
         }),
       });
       saveSession(user);
-      navigate(user.role === "ROLE_EMPLOYEE" ? "/employee-dashboard" : "/dashboard", {
-        replace: true,
-      });
+      navigate(
+        user.role === "ROLE_MENTOR"
+          ? "/mentor-dashboard"
+          : user.role === "ROLE_EMPLOYEE"
+            ? "/employee-dashboard"
+            : "/dashboard",
+        { replace: true },
+      );
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -103,11 +108,12 @@ export default function RegisterPage() {
             required
           >
             <option value="ROLE_EMPLOYEE">Employee</option>
+            <option value="ROLE_MENTOR">Mentor</option>
             <option value="ROLE_HR">HR</option>
             <option value="ROLE_ADMIN">Admin</option>
           </select>
           <small>
-            Employee and HR accounts are available normally. Admin accounts
+            Employee, Mentor, and HR accounts are available normally. Admin accounts
             require a backend provisioning key.
           </small>
         </label>
