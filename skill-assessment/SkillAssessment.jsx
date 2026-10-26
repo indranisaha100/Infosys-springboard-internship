@@ -37,9 +37,9 @@ const Retake = () => (
 
 /**
  * Self-contained skills and assessment page.
- * Optional prop: onComplete({ scores, recommendations }) runs when an attempt is submitted.
+ * Optional props notify the dashboard when an attempt is submitted or retaken.
  */
-export default function SkillAssessment({ onComplete }) {
+export default function SkillAssessment({ onComplete, onRetake }) {
   const [saved, setSaved] = useState(loadResult)
   const [questions, setQuestions] = useState(buildQuestions)
   const [index, setIndex] = useState(0)
@@ -65,6 +65,7 @@ export default function SkillAssessment({ onComplete }) {
     setQuestions(buildQuestions())
     setAnswers({})
     setIndex(0)
+    if (onRetake) onRetake()
   }
 
   if (saved) {
