@@ -1,7 +1,9 @@
 package com.knowledgegap.backend.controller;
 
 import com.knowledgegap.backend.model.User;
+import com.knowledgegap.backend.model.AssessmentScore;
 import com.knowledgegap.backend.model.RecommendationScoresRequest;
+import com.knowledgegap.backend.repository.AssessmentScoreRepository;
 import com.knowledgegap.backend.repository.UserRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
 import com.knowledgegap.backend.service.GeminiRecommendationService;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Instant;
 
 @RestController
 @RequestMapping("/api/employee")
@@ -21,12 +24,45 @@ public class EmployeeController {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final GeminiRecommendationService geminiRecommendationService;
+    private final AssessmentScoreRepository assessmentScoreRepository;
 
     public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
-            GeminiRecommendationService geminiRecommendationService) {
+            GeminiRecommendationService geminiRecommendationService,
+            AssessmentScoreRepository assessmentScoreRepository) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.geminiRecommendationService = geminiRecommendationService;
+        this.assessmentScoreRepository = assessmentScoreRepository;
+    }
+
+    @PostMapping("/assessments")
+    public ResponseEntity<?> saveAssessment(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody(required = false) RecommendationScoresRequest request) {
+        Optional<User> user = authenticatedUser(authorization);
+        if (user.isEmpty()) return unauthorized();
+        if (request == null || request.getScores() == null || request.getScores().isEmpty()
+                || request.getScores().stream().anyMatch(score -> score == null
+                || score.getTopic() == null || score.getTopic().isBlank()
+                || score.getTotal() <= 0 || score.getRight() < 0
+                || score.getRight() > score.getTotal() || score.getTarget() < 0
+                || score.getTarget() > score.getTotal())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Valid assessment scores are required."));
+        }
+
+        Instant submittedAt = Instant.now();
+        List<AssessmentScore> records = request.getScores().stream().map(score -> {
+            AssessmentScore record = new AssessmentScore();
+            record.setEmployeeEmail(user.get().getEmail());
+            record.setTopic(score.getTopic());
+            record.setRightAnswers(score.getRight());
+            record.setTotalQuestions(score.getTotal());
+            record.setTargetAnswers(score.getTarget());
+            record.setSubmittedAt(submittedAt);
+            return record;
+        }).toList();
+        assessmentScoreRepository.saveAll(records);
+        return ResponseEntity.ok(Map.of("message", "Assessment scores saved.", "submittedAt", submittedAt));
     }
 
     @GetMapping("/dashboard")

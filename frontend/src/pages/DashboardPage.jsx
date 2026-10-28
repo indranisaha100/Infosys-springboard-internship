@@ -231,11 +231,19 @@ export default function DashboardPage() {
     localStorage.removeItem("kgipUser");
     navigate("/login", { replace: true });
   }
-  function assessmentCompleted() {
+  async function assessmentCompleted({ scores }) {
     setAssessmentResult(loadResult());
     setAiRecommendations(null);
     setAiRecommendationFor(null);
     setAiError("");
+    try {
+      await request("/employee/assessments", {
+        method: "POST",
+        body: JSON.stringify({ scores }),
+      });
+    } catch (error) {
+      setAiError(`Assessment saved locally, but could not be shared with your mentor: ${error.message}`);
+    }
   }
   function assessmentRetaken() {
     setAssessmentResult(null);
