@@ -21,7 +21,13 @@ export default function LoginPage() {
         body: JSON.stringify(form),
       });
       saveSession(user);
-      navigate(user.role === "ROLE_EMPLOYEE" ? "/employee-dashboard" : "/dashboard");
+      navigate(
+        user.role === "ROLE_MENTOR"
+          ? "/mentor-dashboard"
+          : user.role === "ROLE_EMPLOYEE"
+            ? "/employee-dashboard"
+            : "/dashboard",
+      );
     } catch (requestError) {
       setError(requestError.message);
     } finally {

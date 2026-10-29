@@ -5,7 +5,7 @@ import SkillAssessment from "../../../skill-assessment/SkillAssessment";
 import { loadResult, scoreByTopic } from "../../../skill-assessment/skillAssessmentData";
 
 const navigation = [
-  ["dashboard", "Dashboard"], ["skills", "My Skills"], ["assessment", "Skill Assessment"], ["gaps", "Knowledge Gaps"], ["learning", "Learning"],
+  ["dashboard", "Dashboard"], ["skills", "My Skills"], ["assessment", "Skill Assessment"], ["ai", "AI Recommendations"], ["gaps", "Knowledge Gaps"], ["learning", "Learning"],
   ["bell", "Notifications"], ["report", "Reports"], ["profile", "My Profile"], ["settings", "Settings"],
 ];
 const gaps = [
@@ -19,6 +19,7 @@ function Icon({ name, className = "h-5 w-5" }) {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
     skills: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
     assessment: <><path d="m8 12 2.5 2.5L16 9" /><circle cx="12" cy="12" r="9" /></>,
+    ai: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z" /><path d="m19 15 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15Z" /></>,
     gaps: <><path d="M4 18V6M4 18h16M7 14l3-4 3 2 5-7" /></>,
     learning: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h8M8 15h5" /></>,
     bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
@@ -78,6 +79,70 @@ function SectionPage({ activeItem, data, loading }) {
   );
 }
 
+function AIRecommendationsPage({ data, loading, error, onRetry }) {
+  const quotaLimited = error?.toLowerCase().includes("limit");
+  const priorityStyle = {
+    High: "bg-red-50 text-red-600",
+    Medium: "bg-orange-50 text-orange-600",
+    Stretch: "bg-emerald-50 text-emerald-700",
+  };
+
+  return (
+    <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+      <div className="mb-5">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / AI Recommendations</p>
+        <h1 className="m-0 text-2xl font-medium text-blue-950">AI skill recommendations</h1>
+        <p className="mt-2 text-xs text-slate-500">A score-based improvement path with suggested learning resources for each skill.</p>
+      </div>
+
+      {loading ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500" role="status">Building your learning plan from your assessment scores…</div> : null}
+
+      {error ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-5" role="alert">
+        <h2 className="m-0 text-sm font-semibold text-amber-900">{quotaLimited ? "Gemini limit reached" : "Recommendations aren’t available yet"}</h2>
+        <p className="mb-0 mt-2 text-xs text-amber-800">{error}</p>
+        <button className="mt-4 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white" onClick={onRetry}>{quotaLimited ? "Try again later" : "Try again"}</button>
+      </div> : null}
+
+      {!loading && !error && data ? <div className="space-y-4">
+        <article className="rounded-xl border border-blue-100 bg-blue-50/70 p-5">
+          <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-500 text-white"><Icon name="ai" className="h-5 w-5" /></span><div><h2 className="m-0 text-sm font-semibold text-blue-950">Your learning strategy</h2><p className="mb-0 mt-1.5 text-xs leading-5 text-blue-900">{data.overview}</p></div></div>
+          <p className="mb-0 mt-4 border-t border-blue-100 pt-3 text-[10px] text-slate-500">Assessment scores are a useful practice signal, not a complete measure of your ability. Check course details and availability with the provider.</p>
+        </article>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-4"><h2 className="m-0 text-sm font-semibold text-blue-950">Four-week improvement path</h2><p className="mb-0 mt-1 text-[10px] text-slate-500">A practical sequence with weekly focus and a way to check progress.</p></div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {data.weeklyPlan.map((week) => <article className="rounded-lg border border-slate-100 bg-slate-50 p-4" key={week.week}>
+              <p className="m-0 text-[9px] font-bold uppercase tracking-wide text-blue-500">Week {week.week} · {week.topic}</p>
+              <h3 className="mb-2 mt-2 text-xs font-semibold text-blue-950">{week.focus}</h3>
+              <ul className="m-0 list-disc space-y-1 pl-4 text-[10px] leading-4 text-slate-600">{week.tasks.map((task, index) => <li key={`${week.week}-${index}`}>{task}</li>)}</ul>
+              <a className="mt-3 inline-block text-[10px] font-semibold text-blue-600 hover:text-blue-800" href={week.resource.url} target="_blank" rel="noopener noreferrer">{week.resource.title} ↗</a>
+              <p className="mb-0 mt-3 border-t border-slate-200 pt-2 text-[9px] leading-4 text-slate-500"><strong className="text-slate-600">Check:</strong> {week.successCheck}</p>
+            </article>)}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3"><h2 className="m-0 text-sm font-semibold text-blue-950">Plan by skill</h2><p className="mb-0 mt-1 text-[10px] text-slate-500">Lower assessment scores and larger gaps are prioritized first.</p></div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {data.recommendations.map((skill) => <article className="rounded-xl border border-slate-200 bg-white p-5" key={skill.topic}>
+              <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="m-0 text-sm font-semibold text-blue-950">{skill.topic}</h3><p className="mb-0 mt-1 text-[10px] text-slate-500">Score {skill.right}/{skill.total} · target {skill.target}/{skill.total}</p></div><span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${priorityStyle[skill.priority] || priorityStyle.Stretch}`}>{skill.priority === "Stretch" ? "At target · stretch" : `${skill.priority} priority`}</span></div>
+              <p className="mb-0 mt-3 text-xs leading-5 text-slate-600">{skill.gapSummary}</p>
+              <ol className="mt-3 space-y-2 pl-5 text-[11px] leading-5 text-blue-950">{skill.steps.map((step, index) => <li key={`${skill.topic}-step-${index}`}>{step}</li>)}</ol>
+              <div className="mt-4 border-t border-slate-100 pt-3"><h4 className="m-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Course website</h4>
+                <div className="mt-2 space-y-2">{skill.resources.map((resource) => <div className="rounded-lg bg-slate-50 p-3" key={`${skill.topic}-${resource.title}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><a className="text-[11px] font-semibold text-blue-600 hover:text-blue-800" href={resource.url} target="_blank" rel="noopener noreferrer">{resource.title} ↗</a><span className="text-[9px] text-slate-400">{resource.level} · {resource.hours}h · {resource.source}</span></div>
+                  <p className="mb-0 mt-1 text-[10px] leading-4 text-slate-600">{resource.reason}</p>
+                </div>)}</div>
+              </div>
+            </article>)}
+          </div>
+        </section>
+      </div> : null}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [user] = useState(() => JSON.parse(localStorage.getItem("kgipUser") || "null"));
@@ -85,6 +150,10 @@ export default function DashboardPage() {
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState(loadResult);
+  const [aiRecommendations, setAiRecommendations] = useState(null);
+  const [aiRecommendationFor, setAiRecommendationFor] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
@@ -93,7 +162,7 @@ export default function DashboardPage() {
     });
   }, [navigate, user]);
 
-  async function selectSection(label) {
+  async function selectSection(label, forceRefresh = false) {
     setActiveItem(label);
     if (label === "Dashboard") {
       setSectionData(null);
@@ -104,6 +173,37 @@ export default function DashboardPage() {
       setAssessmentResult(loadResult());
       setSectionData(null);
       setSectionLoading(false);
+      return;
+    }
+    if (label === "AI Recommendations") {
+      const saved = loadResult();
+      setAssessmentResult(saved);
+      setSectionData(null);
+      setAiError("");
+      if (!saved) {
+        setAiRecommendations(null);
+        setAiRecommendationFor(null);
+        setAiError("Complete and submit the Skill Assessment first. AI recommendations are generated only from a saved assessment.");
+        return;
+      }
+      if (!forceRefresh && aiRecommendations && aiRecommendationFor === saved.submittedAt) return;
+      setAiRecommendations(null);
+      setAiRecommendationFor(null);
+      setAiLoading(true);
+      try {
+        const scores = scoreByTopic(saved.questions, saved.answers);
+        const data = await request("/employee/recommendations/skills", {
+          method: "POST",
+          body: JSON.stringify({ scores }),
+        });
+        setAiRecommendations(data);
+        setAiRecommendationFor(saved.submittedAt);
+      } catch (error) {
+        setAiRecommendations(null);
+        setAiError(error.message);
+      } finally {
+        setAiLoading(false);
+      }
       return;
     }
     setSectionLoading(true);
@@ -131,6 +231,18 @@ export default function DashboardPage() {
     localStorage.removeItem("kgipUser");
     navigate("/login", { replace: true });
   }
+  function assessmentCompleted() {
+    setAssessmentResult(loadResult());
+    setAiRecommendations(null);
+    setAiRecommendationFor(null);
+    setAiError("");
+  }
+  function assessmentRetaken() {
+    setAssessmentResult(null);
+    setAiRecommendations(null);
+    setAiRecommendationFor(null);
+    setAiError("");
+  }
   if (!user) return null;
   const firstName = user.firstName || user.email?.split("@")[0] || "there";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AM";
@@ -154,12 +266,14 @@ export default function DashboardPage() {
         </div>
         <p className="mb-2 mt-9 px-4 text-[10px] font-bold uppercase tracking-[1.2px] text-blue-300 max-[650px]:hidden">Employee workspace</p>
         <nav className="grid gap-1" aria-label="Employee workspace">
-          {navigation.map(([icon, label]) => (
-            <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#315fae] text-white" : "text-blue-200 hover:bg-[#315fae]"}`} key={label} onClick={() => selectSection(label)}>
+          {navigation.map(([icon, label]) => {
+            const locked = label === "AI Recommendations" && !assessmentResult;
+            return <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#315fae] text-white" : "text-blue-200 hover:bg-[#315fae]"} disabled:cursor-not-allowed disabled:opacity-50`} key={label} onClick={() => selectSection(label)} disabled={locked} title={locked ? "Complete the skill assessment to unlock recommendations" : undefined} aria-disabled={locked}>
               <Icon name={icon} className="h-[18px] w-[18px] shrink-0" /><span className="max-[650px]:hidden">{label}</span>
               {label === "Notifications" && <b className="ml-auto grid h-[18px] w-[18px] place-items-center rounded-full bg-rose-500 text-[10px] text-white">3</b>}
-            </button>
-          ))}
+              {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
+            </button>;
+          })}
         </nav>
         <button className="mt-4 flex items-center gap-3 rounded-lg border border-blue-200/20 px-3 py-2.5 text-left text-sm text-blue-200 hover:bg-rose-500/20 hover:text-white max-[650px]:justify-center" onClick={signOut}>
           <span className="text-lg">↪</span><span className="max-[650px]:hidden">Log out</span>
@@ -181,9 +295,9 @@ export default function DashboardPage() {
             </button>
           </div>
         </header>
-        {activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+        {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
-          <SkillAssessment onComplete={() => setAssessmentResult(loadResult())} />
+          <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} />
         </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>
