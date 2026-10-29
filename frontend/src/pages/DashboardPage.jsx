@@ -79,6 +79,66 @@ function SectionPage({ activeItem, data, loading }) {
   );
 }
 
+function KnowledgeGapsPage({ scores, onTakeAssessment }) {
+  const gaps = scores
+    .filter((score) => score.total > 0)
+    .map((score) => {
+      const current = Math.round((score.right / score.total) * 100);
+      const required = Math.round((score.target / score.total) * 100);
+      return { name: score.topic, current, required, gap: Math.max(required - current, 0) };
+    });
+
+  return (
+    <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+      <div className="mb-5">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Knowledge Gaps</p>
+        <h1 className="m-0 text-2xl font-medium text-blue-950">Knowledge Gaps</h1>
+        <p className="mt-2 text-xs text-slate-500">Compare your assessment scores with the target for each skill.</p>
+      </div>
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="m-0 text-sm font-medium text-blue-950">Skill gaps by assessment score</h2>
+            <p className="mb-0 mt-1.5 text-[10px] text-slate-500">Current score compared with the required target</p>
+          </div>
+          {gaps.length > 0 && <div className="flex gap-3 text-[9px] text-slate-500" aria-label="Chart legend">
+            <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-500" />Current score</span>
+            <span><i className="mr-1 inline-block h-3 w-0.5 bg-slate-500 align-middle" />Target</span>
+          </div>}
+        </div>
+        {gaps.length ? (
+          <div className="space-y-5">
+            {gaps.map(({ name, current, required, gap }) => (
+              <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_100px] sm:items-center sm:gap-4" key={name}>
+                <span className="text-xs font-medium text-blue-950">{name}</span>
+                <div
+                  className="relative h-3 rounded-full bg-slate-100"
+                  role="img"
+                  aria-label={`${name}: current score ${current}%, target ${required}%, gap ${gap} percentage points`}
+                >
+                  <span
+                    className={`block h-full rounded-full ${gap ? "bg-blue-500" : "bg-emerald-500"}`}
+                    style={{ width: `${current}%` }}
+                  />
+                  <span className="absolute -top-1 h-5 w-0.5 bg-slate-500" style={{ left: `${required}%` }} />
+                </div>
+                <span className="text-[10px] text-slate-500">{current}% / {required}%{gap ? ` · ${gap} pp gap` : " · On target"}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg bg-slate-50 p-5 text-center">
+            <p className="m-0 text-sm text-slate-600">Complete a skill assessment to see your knowledge gaps.</p>
+            <button className="mt-3 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600" onClick={onTakeAssessment}>
+              Take skill assessment
+            </button>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function AIRecommendationsPage({ data, loading, error, onRetry }) {
   const quotaLimited = error?.toLowerCase().includes("limit");
   const priorityStyle = {
@@ -150,6 +210,7 @@ export default function DashboardPage() {
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState(loadResult);
+  const [assessmentLoadError, setAssessmentLoadError] = useState("");
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [aiRecommendationFor, setAiRecommendationFor] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -157,45 +218,54 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
-    else request("/employee/dashboard").catch(() => {
-      setSectionData({ message: "Dashboard data could not be refreshed from the server." });
-    });
+    else {
+      request("/employee/dashboard").catch(() => {
+        setSectionData({ message: "Dashboard data could not be refreshed from the server." });
+      });
+      request("/employee/assessments/latest")
+        .then((result) => {
+          setAssessmentLoadError("");
+          setAssessmentResult(result.scores?.length ? result : loadResult());
+        })
+        .catch((error) => {
+          setAssessmentLoadError(`Saved assessment could not be loaded: ${error.message}`);
+        });
+    }
   }, [navigate, user]);
 
   async function selectSection(label, forceRefresh = false) {
     setActiveItem(label);
     if (label === "Dashboard") {
       setSectionData(null);
-      setAssessmentResult(loadResult());
       return;
     }
     if (label === "Skill Assessment") {
-      setAssessmentResult(loadResult());
+      setAssessmentResult((current) => current?.scores?.length ? current : loadResult());
+      setSectionData(null);
+      setSectionLoading(false);
+      return;
+    }
+    if (label === "Knowledge Gaps") {
       setSectionData(null);
       setSectionLoading(false);
       return;
     }
     if (label === "AI Recommendations") {
-      const saved = loadResult();
-      setAssessmentResult(saved);
       setSectionData(null);
       setAiError("");
-      if (!saved) {
-        setAiRecommendations(null);
-        setAiRecommendationFor(null);
-        setAiError("Complete and submit the Skill Assessment first. AI recommendations are generated only from a saved assessment.");
-        return;
-      }
-      if (!forceRefresh && aiRecommendations && aiRecommendationFor === saved.submittedAt) return;
       setAiRecommendations(null);
-      setAiRecommendationFor(null);
       setAiLoading(true);
       try {
-        const scores = scoreByTopic(saved.questions, saved.answers);
-        const data = await request("/employee/recommendations/skills", {
-          method: "POST",
-          body: JSON.stringify({ scores }),
-        });
+        const saved = await request("/employee/assessments/latest");
+        if (!saved.scores?.length) {
+          setAiRecommendationFor(null);
+          setAiError("Complete and submit the Skill Assessment first. Recommendations use your assessment saved in the employee database.");
+          return;
+        }
+        setAssessmentResult(saved);
+        if (!forceRefresh && aiRecommendations && aiRecommendationFor === saved.submittedAt) return;
+        const refresh = forceRefresh ? "?refresh=true" : "";
+        const data = await request(`/employee/recommendations/skills${refresh}`);
         setAiRecommendations(data);
         setAiRecommendationFor(saved.submittedAt);
       } catch (error) {
@@ -231,11 +301,15 @@ export default function DashboardPage() {
     localStorage.removeItem("kgipUser");
     navigate("/login", { replace: true });
   }
-  function assessmentCompleted() {
-    setAssessmentResult(loadResult());
+  async function assessmentCompleted({ scores, attempt }) {
     setAiRecommendations(null);
     setAiRecommendationFor(null);
     setAiError("");
+    await request("/employee/assessments", {
+      method: "POST",
+      body: JSON.stringify({ scores }),
+    });
+    setAssessmentResult({ ...attempt, scores });
   }
   function assessmentRetaken() {
     setAssessmentResult(null);
@@ -246,7 +320,9 @@ export default function DashboardPage() {
   if (!user) return null;
   const firstName = user.firstName || user.email?.split("@")[0] || "there";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AM";
-  const assessmentScores = assessmentResult ? scoreByTopic(assessmentResult.questions, assessmentResult.answers) : [];
+  const assessmentScores = assessmentResult
+    ? assessmentResult.scores || scoreByTopic(assessmentResult.questions, assessmentResult.answers)
+    : [];
   const assessmentRows = assessmentScores.map((score) => {
     const current = Math.round((score.right / score.total) * 100);
     const required = Math.round((score.target / score.total) * 100);
@@ -295,9 +371,10 @@ export default function DashboardPage() {
             </button>
           </div>
         </header>
-        {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+        {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
+        {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Knowledge Gaps" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
-          <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} />
+          <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
         </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>

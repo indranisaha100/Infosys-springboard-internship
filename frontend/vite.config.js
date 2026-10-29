@@ -1,8 +1,8 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 
 const frontendDirectory = path.dirname(fileURLToPath(import.meta.url))
 
@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       react: path.resolve(frontendDirectory, 'node_modules/react'),
+      'react-dom': path.resolve(frontendDirectory, 'node_modules/react-dom'),
     },
   },
 })
