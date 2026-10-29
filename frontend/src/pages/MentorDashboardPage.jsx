@@ -153,7 +153,7 @@ const sectionEndpoints = {
   Settings: "settings",
 };
 
-function SectionWorkspace({ activeItem, data, loading, onSelectMentee }) {
+function SectionWorkspace({ activeItem, data, dashboardData, loading, error, onSelectMentee }) {
   const employees = data?.employees || [];
   const assessments = Array.isArray(data?.assessments) ? data.assessments : [];
   return (
@@ -162,13 +162,52 @@ function SectionWorkspace({ activeItem, data, loading, onSelectMentee }) {
         <div><p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-blue-500">Live workspace</p><h2 className="m-0 text-2xl font-bold text-[#0b1d35]">{activeItem}</h2><p className="mt-2 text-sm text-slate-500">{data?.message || "Connected to the mentor workspace."}</p></div>
         <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-700">Live data</span>
       </div>
-      {loading ? <p className="py-8 text-center text-sm text-slate-500">Loading the latest workspace data...</p> : activeItem === "Employee Assessments" && assessments.length ? (
+      {loading ? <p className="py-8 text-center text-sm text-slate-500">Loading the latest workspace data...</p> : error ? (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Could not load this section: {error}
+        </div>
+      ) : activeItem === "Team Skill Gap Analysis" ? (
+        <div className="space-y-5">
+          {dashboardData.gaps.map((gap) => <div key={gap.name}>
+            <div className="mb-2 flex justify-between text-xs"><span className="font-medium text-slate-700">{gap.name}</span><strong>{gap.value}%</strong></div>
+            <div className="h-2 rounded-full bg-slate-100"><div className={`h-full rounded-full ${gap.color}`} style={{ width: `${gap.value}%` }} /></div>
+          </div>)}
+        </div>
+      ) : activeItem === "Team Skill Gap Heatmap" ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-left text-xs">
+            <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{["A", "B", "C", "D", "E"].map((label) => <th key={label} className="px-3 py-3 text-center font-semibold">{label}</th>)}</tr></thead>
+            <tbody>{dashboardData.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value}</span></td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      ) : activeItem === "Training Recommendations" ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {dashboardData.recommendations.map((resource) => <article key={resource.title} className="rounded-xl border border-slate-200 p-4">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-50 text-violet-600"><Icon name={resource.icon} /></span>
+            <p className="mb-1 mt-4 text-[10px] font-bold uppercase tracking-wider text-violet-600">{resource.category}</p>
+            <h3 className="m-0 text-sm font-bold text-[#0b1d35]">{resource.title}</h3>
+            <p className="mt-2 text-xs text-slate-500">{resource.difficulty} · {resource.duration}</p>
+          </article>)}
+        </div>
+      ) : activeItem === "Learning Progress" ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {dashboardData.learningProgress.map((item) => <article key={item.title} className="rounded-xl border border-slate-200 p-4">
+            <div className={`mb-3 h-2 rounded-full ${item.color}`} />
+            <p className="m-0 text-xs text-slate-500">{item.title}</p>
+            <strong className="mt-1 block text-2xl text-[#0b1d35]">{item.count}</strong>
+          </article>)}
+        </div>
+      ) : activeItem === "Employee Assessments" && assessments.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] border-collapse text-left text-xs">
             <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Employee</th><th className="px-3 py-3 font-semibold">Skill area</th><th className="px-3 py-3 font-semibold">Score</th><th className="px-3 py-3 font-semibold">Target</th><th className="px-3 py-3 font-semibold">Submitted</th></tr></thead>
             <tbody>{assessments.map((assessment) => <tr key={`${assessment.email}-${assessment.topic}-${assessment.submittedAt}`} className="border-b border-slate-50 last:border-0"><td className="px-3 py-4 font-semibold text-[#0b1d35]">{assessment.employee}</td><td className="px-3 py-4 text-slate-600">{assessment.topic}</td><td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${assessment.score >= Math.round((assessment.target / assessment.total) * 100) ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{assessment.score}%</span></td><td className="px-3 py-4 text-slate-500">{Math.round((assessment.target / assessment.total) * 100)}%</td><td className="px-3 py-4 text-slate-500">{new Date(assessment.submittedAt).toLocaleDateString()}</td></tr>)}</tbody>
           </table>
         </div>
+      ) : activeItem === "Employee Assessments" ? (
+        <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">No employee assessments have been submitted yet.</div>
+      ) : activeItem === "Mentorship Management" && data?.message ? (
+        <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">{data.message}</div>
       ) : employees.length ? (
         <div className="grid gap-3 md:grid-cols-2">
           {employees.map((employee) => <button key={employee.email} onClick={() => onSelectMentee(employee)} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 hover:bg-blue-50/40">
@@ -193,6 +232,8 @@ export default function MentorDashboardPage() {
   const [dataError, setDataError] = useState("");
   const [authError, setAuthError] = useState(false);
   const [sectionData, setSectionData] = useState(null);
+  const [sectionLoading, setSectionLoading] = useState(false);
+  const [sectionError, setSectionError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -206,11 +247,20 @@ export default function MentorDashboardPage() {
 
   useEffect(() => {
     const endpoint = sectionEndpoints[activeItem];
-    if (!endpoint) return undefined;
+    if (!endpoint) {
+      setSectionData(null);
+      setSectionLoading(false);
+      setSectionError("");
+      return undefined;
+    }
     let active = true;
+    setSectionData(null);
+    setSectionError("");
+    setSectionLoading(true);
     request(`/mentor/sections/${endpoint}`)
       .then((result) => { if (active) setSectionData(result); })
-      .catch((error) => { if (active) showMessage(error.message); })
+      .catch((error) => { if (active) setSectionError(error.message); })
+      .finally(() => { if (active) setSectionLoading(false); });
     return () => { active = false; };
   }, [activeItem]);
 
@@ -255,7 +305,7 @@ export default function MentorDashboardPage() {
       <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-8 max-md:px-4 max-md:pb-24">
         {message && <div role="status" className="fixed right-6 top-24 z-30 rounded-xl bg-[#0b1d35] px-4 py-3 text-xs font-medium text-white shadow-xl">{message}</div>}
         {dataError && <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><span>{authError ? "Your mentor session is missing or expired. Sign in again to load live data." : `Live mentor data could not be loaded: ${dataError}`}</span><button className="font-semibold underline" onClick={() => authError ? signOut() : window.location.reload()}>{authError ? "Sign in" : "Retry"}</button></div>}
-        {activeItem !== "Dashboard" ? <SectionWorkspace activeItem={activeItem} data={sectionData} loading={sectionData?.section !== activeItem} onSelectMentee={(employee) => showMessage(`${employee.name} selected. Assessment and mentoring actions are ready.`)} /> : <>
+        {activeItem !== "Dashboard" ? <SectionWorkspace activeItem={activeItem} data={sectionData} dashboardData={data} loading={sectionLoading} error={sectionError} onSelectMentee={(employee) => showMessage(`${employee.name} selected. Assessment and mentoring actions are ready.`)} /> : <>
           <section className="flex items-center justify-between gap-5 rounded-2xl bg-gradient-to-br from-[#123c71] to-[#1d5eb1] p-7 text-white shadow-lg shadow-blue-900/10 max-md:flex-col max-md:items-start"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-blue-200">Tuesday, October 27, 2026</p>          <h2 className="m-0 text-3xl font-bold tracking-tight">Welcome back, Mentor!</h2><p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Help your mentees grow by identifying skill gaps and recommending personalized learning paths.</p>
 </div><button onClick={() => showMessage("Session scheduler opened — choose a mentee to continue.")} className="shrink-0 rounded-xl bg-white px-4 py-3 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50">+ Schedule Mentoring Session</button></section>          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{data.stats.map((stat) => <StatCard key={stat.label} stat={stat} />)}</section>
 
