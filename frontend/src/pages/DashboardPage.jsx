@@ -79,6 +79,66 @@ function SectionPage({ activeItem, data, loading }) {
   );
 }
 
+function KnowledgeGapsPage({ scores, onTakeAssessment }) {
+  const gaps = scores
+    .filter((score) => score.total > 0)
+    .map((score) => {
+      const current = Math.round((score.right / score.total) * 100);
+      const required = Math.round((score.target / score.total) * 100);
+      return { name: score.topic, current, required, gap: Math.max(required - current, 0) };
+    });
+
+  return (
+    <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+      <div className="mb-5">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Knowledge Gaps</p>
+        <h1 className="m-0 text-2xl font-medium text-blue-950">Knowledge Gaps</h1>
+        <p className="mt-2 text-xs text-slate-500">Compare your assessment scores with the target for each skill.</p>
+      </div>
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="m-0 text-sm font-medium text-blue-950">Skill gaps by assessment score</h2>
+            <p className="mb-0 mt-1.5 text-[10px] text-slate-500">Current score compared with the required target</p>
+          </div>
+          {gaps.length > 0 && <div className="flex gap-3 text-[9px] text-slate-500" aria-label="Chart legend">
+            <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-500" />Current score</span>
+            <span><i className="mr-1 inline-block h-3 w-0.5 bg-slate-500 align-middle" />Target</span>
+          </div>}
+        </div>
+        {gaps.length ? (
+          <div className="space-y-5">
+            {gaps.map(({ name, current, required, gap }) => (
+              <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_100px] sm:items-center sm:gap-4" key={name}>
+                <span className="text-xs font-medium text-blue-950">{name}</span>
+                <div
+                  className="relative h-3 rounded-full bg-slate-100"
+                  role="img"
+                  aria-label={`${name}: current score ${current}%, target ${required}%, gap ${gap} percentage points`}
+                >
+                  <span
+                    className={`block h-full rounded-full ${gap ? "bg-blue-500" : "bg-emerald-500"}`}
+                    style={{ width: `${current}%` }}
+                  />
+                  <span className="absolute -top-1 h-5 w-0.5 bg-slate-500" style={{ left: `${required}%` }} />
+                </div>
+                <span className="text-[10px] text-slate-500">{current}% / {required}%{gap ? ` · ${gap} pp gap` : " · On target"}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg bg-slate-50 p-5 text-center">
+            <p className="m-0 text-sm text-slate-600">Complete a skill assessment to see your knowledge gaps.</p>
+            <button className="mt-3 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600" onClick={onTakeAssessment}>
+              Take skill assessment
+            </button>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function AIRecommendationsPage({ data, loading, error, onRetry }) {
   const quotaLimited = error?.toLowerCase().includes("limit");
   const priorityStyle = {
@@ -181,6 +241,11 @@ export default function DashboardPage() {
     }
     if (label === "Skill Assessment") {
       setAssessmentResult((current) => current?.scores?.length ? current : loadResult());
+      setSectionData(null);
+      setSectionLoading(false);
+      return;
+    }
+    if (label === "Knowledge Gaps") {
       setSectionData(null);
       setSectionLoading(false);
       return;
@@ -307,7 +372,7 @@ export default function DashboardPage() {
           </div>
         </header>
         {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
-        {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+        {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Knowledge Gaps" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
           <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
         </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
