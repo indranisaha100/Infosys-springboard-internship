@@ -145,10 +145,10 @@ export function loadResult() {
   return valid ? r : null
 }
 
-export const saveResult = (questions, answers) =>
+export const saveResult = (questions, answers, submittedAt = new Date().toISOString()) =>
   localStorage.setItem(
     RESULT_KEY,
-    JSON.stringify({ questions, answers, submittedAt: new Date().toISOString() })
+    JSON.stringify({ questions, answers, submittedAt })
   )
 
 export const clearResult = () => localStorage.removeItem(RESULT_KEY)

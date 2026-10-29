@@ -150,6 +150,7 @@ export default function DashboardPage() {
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState(loadResult);
+  const [assessmentLoadError, setAssessmentLoadError] = useState("");
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [aiRecommendationFor, setAiRecommendationFor] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -157,45 +158,49 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
-    else request("/employee/dashboard").catch(() => {
-      setSectionData({ message: "Dashboard data could not be refreshed from the server." });
-    });
+    else {
+      request("/employee/dashboard").catch(() => {
+        setSectionData({ message: "Dashboard data could not be refreshed from the server." });
+      });
+      request("/employee/assessments/latest")
+        .then((result) => {
+          setAssessmentLoadError("");
+          setAssessmentResult(result.scores?.length ? result : loadResult());
+        })
+        .catch((error) => {
+          setAssessmentLoadError(`Saved assessment could not be loaded: ${error.message}`);
+        });
+    }
   }, [navigate, user]);
 
   async function selectSection(label, forceRefresh = false) {
     setActiveItem(label);
     if (label === "Dashboard") {
       setSectionData(null);
-      setAssessmentResult(loadResult());
       return;
     }
     if (label === "Skill Assessment") {
-      setAssessmentResult(loadResult());
+      setAssessmentResult((current) => current?.scores?.length ? current : loadResult());
       setSectionData(null);
       setSectionLoading(false);
       return;
     }
     if (label === "AI Recommendations") {
-      const saved = loadResult();
-      setAssessmentResult(saved);
       setSectionData(null);
       setAiError("");
-      if (!saved) {
-        setAiRecommendations(null);
-        setAiRecommendationFor(null);
-        setAiError("Complete and submit the Skill Assessment first. AI recommendations are generated only from a saved assessment.");
-        return;
-      }
-      if (!forceRefresh && aiRecommendations && aiRecommendationFor === saved.submittedAt) return;
       setAiRecommendations(null);
-      setAiRecommendationFor(null);
       setAiLoading(true);
       try {
-        const scores = scoreByTopic(saved.questions, saved.answers);
-        const data = await request("/employee/recommendations/skills", {
-          method: "POST",
-          body: JSON.stringify({ scores }),
-        });
+        const saved = await request("/employee/assessments/latest");
+        if (!saved.scores?.length) {
+          setAiRecommendationFor(null);
+          setAiError("Complete and submit the Skill Assessment first. Recommendations use your assessment saved in the employee database.");
+          return;
+        }
+        setAssessmentResult(saved);
+        if (!forceRefresh && aiRecommendations && aiRecommendationFor === saved.submittedAt) return;
+        const refresh = forceRefresh ? "?refresh=true" : "";
+        const data = await request(`/employee/recommendations/skills${refresh}`);
         setAiRecommendations(data);
         setAiRecommendationFor(saved.submittedAt);
       } catch (error) {
@@ -231,19 +236,15 @@ export default function DashboardPage() {
     localStorage.removeItem("kgipUser");
     navigate("/login", { replace: true });
   }
-  async function assessmentCompleted({ scores }) {
-    setAssessmentResult(loadResult());
+  async function assessmentCompleted({ scores, attempt }) {
     setAiRecommendations(null);
     setAiRecommendationFor(null);
     setAiError("");
-    try {
-      await request("/employee/assessments", {
-        method: "POST",
-        body: JSON.stringify({ scores }),
-      });
-    } catch (error) {
-      setAiError(`Assessment saved locally, but could not be shared with your mentor: ${error.message}`);
-    }
+    await request("/employee/assessments", {
+      method: "POST",
+      body: JSON.stringify({ scores }),
+    });
+    setAssessmentResult({ ...attempt, scores });
   }
   function assessmentRetaken() {
     setAssessmentResult(null);
@@ -254,7 +255,9 @@ export default function DashboardPage() {
   if (!user) return null;
   const firstName = user.firstName || user.email?.split("@")[0] || "there";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AM";
-  const assessmentScores = assessmentResult ? scoreByTopic(assessmentResult.questions, assessmentResult.answers) : [];
+  const assessmentScores = assessmentResult
+    ? assessmentResult.scores || scoreByTopic(assessmentResult.questions, assessmentResult.answers)
+    : [];
   const assessmentRows = assessmentScores.map((score) => {
     const current = Math.round((score.right / score.total) * 100);
     const required = Math.round((score.target / score.total) * 100);
@@ -303,9 +306,10 @@ export default function DashboardPage() {
             </button>
           </div>
         </header>
+        {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
         {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
-          <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} />
+          <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
         </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>

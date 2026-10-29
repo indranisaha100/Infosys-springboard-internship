@@ -37,34 +37,47 @@ const Retake = () => (
 
 /**
  * Self-contained skills and assessment page.
- * Optional prop: onComplete({ scores, recommendations }) runs when an attempt is submitted.
+ * Optional prop: onComplete({ scores, recommendations, attempt }) persists a submitted attempt.
  */
-export default function SkillAssessment({ onComplete }) {
-  const [saved, setSaved] = useState(loadResult)
+export default function SkillAssessment({ onComplete, onRetake, persistedResult }) {
+  const [localSaved, setLocalSaved] = useState(loadResult)
+  const saved = persistedResult?.scores?.length ? persistedResult : localSaved
   const [questions, setQuestions] = useState(buildQuestions)
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState({})
   const [done, setDone] = useState(loadDone)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const total = questions.length
   const answered = Object.keys(answers).length
 
-  const submit = () => {
-    saveResult(questions, answers)
-    setSaved(loadResult())
-    if (onComplete) {
-      const scores = scoreByTopic(questions, answers)
-      onComplete({ scores, recommendations: recommendations(scores) })
+  const submit = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    setSubmitError('')
+    const scores = scoreByTopic(questions, answers)
+    const attempt = { questions, answers, submittedAt: new Date().toISOString() }
+    try {
+      await onComplete?.({ scores, recommendations: recommendations(scores), attempt })
+      saveResult(questions, answers, attempt.submittedAt)
+      setLocalSaved(loadResult())
+    } catch (error) {
+      setSubmitError(error.message || 'The assessment could not be saved. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   // A retake builds a new set of questions.
   const retake = () => {
     clearResult()
-    setSaved(null)
+    setLocalSaved(null)
     setQuestions(buildQuestions())
     setAnswers({})
     setIndex(0)
+    setSubmitError('')
+    onRetake?.()
   }
 
   if (saved) {
@@ -132,8 +145,8 @@ export default function SkillAssessment({ onComplete }) {
             </div>
 
             {isLast ? (
-              <button type="button" className="sa-btn primary" disabled={answered < total} onClick={submit}>
-                Submit and get recommendations
+              <button type="button" className="sa-btn primary" disabled={answered < total || submitting} onClick={submit}>
+                {submitting ? 'Saving assessment…' : 'Submit and get recommendations'}
               </button>
             ) : (
               <button type="button" className="sa-btn primary" disabled={answers[index] === undefined}
@@ -143,8 +156,9 @@ export default function SkillAssessment({ onComplete }) {
             )}
           </div>
         </div>
+        {submitError && <p className="sa-footer" role="alert">{submitError}</p>}
         <p className="sa-footer">
-          Each attempt uses a different mix of questions. Results are saved in this browser.
+          Each attempt uses a different mix of questions. Submitted scores are saved to your employee record.
         </p>
       </div>
     </div>
@@ -180,7 +194,7 @@ function CourseRow({ course, topic, done, onToggle }) {
 }
 
 function Results({ saved, done, setDone, onRetake }) {
-  const scores = scoreByTopic(saved.questions, saved.answers)
+  const scores = saved.scores || scoreByTopic(saved.questions, saved.answers)
   const recs = recommendations(scores)
   const growing = growth(scores)
   const suggested = recs.flatMap((r) => r.courses)
