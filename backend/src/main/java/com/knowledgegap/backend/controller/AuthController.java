@@ -1,8 +1,10 @@
+
 package com.knowledgegap.backend.controller;
 
 import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.repository.UserRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -32,37 +34,61 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(
             @RequestBody User user,
-            @RequestHeader(value = "X-Admin-Registration-Key", required = false) String registrationKey) {
+            @RequestHeader(
+                value = "X-Admin-Registration-Key",
+                required = false
+            ) String registrationKey) {
+
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Error: Email is already in use!");
+            return ResponseEntity.badRequest()
+                    .body("Error: Email is already in use!");
         }
-        if ("ROLE_ADMIN".equals(user.getRole()) && !isValidAdminKey(registrationKey)) {
-            return ResponseEntity.status(403).body("Admin registration requires a valid provisioning key.");
+
+        if ("ROLE_ADMIN".equals(user.getRole())
+                && !isValidAdminKey(registrationKey)) {
+
+            return ResponseEntity.status(403)
+                    .body("Admin registration requires a valid provisioning key.");
         }
+
         user.setRole(normalizeRole(user.getRole()));
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        user.setPassword(
+                passwordEncoder.encode(user.getPassword())
+        );
+
         User savedUser = userRepository.save(user);
+
         Map<String, Object> response = new HashMap<>();
+
         response.put("email", savedUser.getEmail());
         response.put("firstName", savedUser.getFirstName());
         response.put("lastName", savedUser.getLastName());
         response.put("role", savedUser.getRole());
+
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody User loginRequest) {
-        Optional<User> userOptional = userRepository.findByEmail(loginRequest.getEmail());
+    public ResponseEntity<?> loginUser(
+            @RequestBody User loginRequest) {
+
+        Optional<User> userOptional =
+                userRepository.findByEmail(loginRequest.getEmail());
 
         if (userOptional.isPresent()
-                && passwordEncoder.matches(loginRequest.getPassword(), userOptional.get().getPassword())) {
+                && passwordEncoder.matches(
+                        loginRequest.getPassword(),
+                        userOptional.get().getPassword()
+                )) {
+
             User user = userOptional.get();
 
-            // Generate JWT Token using user email
-            String token = jwtTokenProvider.generateToken(user.getEmail());
+            String token =
+                    jwtTokenProvider.generateToken(user.getEmail());
 
-            // Return token along with user details
             Map<String, Object> response = new HashMap<>();
+
             response.put("token", token);
             response.put("type", "Bearer");
             response.put("email", user.getEmail());
@@ -73,22 +99,39 @@ public class AuthController {
             return ResponseEntity.ok(response);
         }
 
-        return ResponseEntity.status(401).body("Invalid email or password");
+        return ResponseEntity.status(401)
+                .body("Invalid email or password");
     }
 
     private boolean isValidAdminKey(String registrationKey) {
+
         return adminRegistrationKey != null
                 && !adminRegistrationKey.isBlank()
                 && adminRegistrationKey.equals(registrationKey);
     }
 
     private String normalizeRole(String role) {
+
         if ("ROLE_ADMIN".equals(role)) {
             return "ROLE_ADMIN";
         }
-        if ("ROLE_HR".equals(role) || "ROLE_EMPLOYEE".equals(role) || "ROLE_MENTOR".equals(role)) {
-            return role;
+
+        if ("ROLE_HR".equals(role)) {
+            return "ROLE_HR";
         }
+
+        if ("ROLE_MANAGER".equals(role)) {
+            return "ROLE_MANAGER";
+        }
+
+        if ("ROLE_MENTOR".equals(role)) {
+            return "ROLE_MENTOR";
+        }
+
+        if ("ROLE_EMPLOYEE".equals(role)) {
+            return "ROLE_EMPLOYEE";
+        }
+
         return "ROLE_EMPLOYEE";
     }
 }
