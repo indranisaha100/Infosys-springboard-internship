@@ -182,6 +182,28 @@ public class EmployeeController {
                     "The recommendation could not be saved.");
         }
     }
+        @PostMapping("/chat")
+public ResponseEntity<?> chat(
+        @RequestHeader(value = "Authorization", required = false) String authorization,
+        @RequestBody Map<String, String> body) {
+    Optional<User> user = authenticatedEmployee(authorization);
+    if (user.isEmpty()) return unauthorized();
+    String message = body.getOrDefault("message", "").trim();
+    if (message.isEmpty() || message.length() > 1000) {
+        return ResponseEntity.badRequest().body(Map.of("message", "Enter a message up to 1000 characters."));
+    }
+    List<AssessmentScore> saved = assessmentScoreRepository
+            .findByEmployeeEmailOrderBySubmittedAtDesc(user.get().getEmail());
+    var scores = saved.isEmpty() ? List.<RecommendationScoresRequest.ScoreDto>of()
+            : scoreDtosForSubmission(saved, saved.get(0).getSubmittedAt());
+    try {
+        String name = user.get().getFirstName() == null ? "the employee" : user.get().getFirstName();
+        return ResponseEntity.ok(Map.of("reply", geminiRecommendationService.chat(name, scores, message)));
+    } catch (ResponseStatusException e) {
+        return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", String.valueOf(e.getReason())));
+    }
+}
+
 
     @GetMapping("/sections/{section}")
     public ResponseEntity<?> section(@PathVariable String section,
