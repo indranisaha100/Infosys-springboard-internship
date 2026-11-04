@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
@@ -5,6 +6,7 @@ import { request, saveSession } from "../services/api";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -12,23 +14,32 @@ export default function RegisterPage() {
     password: "",
     role: "ROLE_EMPLOYEE",
   });
+
   const [adminKey, setAdminKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const update = (event) =>
-    setForm({ ...form, [event.target.name]: event.target.value });
+
+  const update = (event) => {
+    setForm({
+      ...form,
+      [event.target.name]: event.target.value,
+    });
+  };
 
   async function submit(event) {
     event.preventDefault();
+
     setError("");
     setLoading(true);
+
     if (form.role === "ROLE_ADMIN" && !adminKey.trim()) {
       setError(
-        "Admin registration requires a provisioning key. Choose Employee or HR for a normal account.",
+        "Admin registration requires a provisioning key."
       );
       setLoading(false);
       return;
     }
+
     try {
       await request("/auth/register", {
         method: "POST",
@@ -38,6 +49,7 @@ export default function RegisterPage() {
             ? { "X-Admin-Registration-Key": adminKey }
             : {},
       });
+
       const user = await request("/auth/login", {
         method: "POST",
         body: JSON.stringify({
@@ -45,6 +57,13 @@ export default function RegisterPage() {
           password: form.password,
         }),
       });
+
+      if (!user?.token || !user?.role) {
+        throw new Error(
+          "Registration succeeded, but login returned incomplete account details."
+        );
+      }
+
       saveSession(user);
       navigate(
         user.role === "ROLE_MENTOR"
@@ -82,6 +101,7 @@ export default function RegisterPage() {
               required
             />
           </label>
+
           <label>
             Last name
             <input
@@ -92,6 +112,7 @@ export default function RegisterPage() {
             />
           </label>
         </div>
+
         <label>
           Email address
           <input
@@ -102,8 +123,10 @@ export default function RegisterPage() {
             required
           />
         </label>
+
         <label>
           Register as
+
           <select
             className="mt-1 w-full cursor-pointer rounded-xl border border-[#294a6b] bg-[#102945] px-4 py-3 text-[#f3f7fb] outline-none transition focus:border-[#72c8e8]"
             name="role"
@@ -117,28 +140,36 @@ export default function RegisterPage() {
             <option value="ROLE_MANAGER">Manager</option>
             <option value="ROLE_ADMIN">Admin</option>
           </select>
+
           <small>
-            Employee, Mentor, and HR accounts are available normally. Admin accounts
-            require a backend provisioning key.
+            Select the role that corresponds to your account.
+            Admin accounts require a backend provisioning key.
           </small>
         </label>
+
         {form.role === "ROLE_ADMIN" && (
           <label>
             Admin provisioning key
+
             <input
               type="password"
               name="adminKey"
               value={adminKey}
-              onChange={(event) => setAdminKey(event.target.value)}
+              onChange={(event) =>
+                setAdminKey(event.target.value)
+              }
               required
             />
+
             <small>
               This key is checked only by the backend and is never stored.
             </small>
           </label>
         )}
+
         <label>
           Password
+
           <input
             type="password"
             name="password"
@@ -147,10 +178,21 @@ export default function RegisterPage() {
             minLength="8"
             required
           />
+
           <small>Use at least 8 characters.</small>
         </label>
-        {error && <p className="feedback error">{error}</p>}
-        <button className="primary-button" type="submit" disabled={loading}>
+
+        {error && (
+          <p className="feedback error">
+            {error}
+          </p>
+        )}
+
+        <button
+          className="primary-button"
+          type="submit"
+          disabled={loading}
+        >
           {loading ? "Creating account..." : "Create account"}
           <span>→</span>
         </button>
