@@ -26,7 +26,11 @@ export default function LoginPage() {
           ? "/mentor-dashboard"
           : user.role === "ROLE_EMPLOYEE"
             ? "/employee-dashboard"
-            : "/dashboard",
+            : ["ROLE_ADMIN", "ROLE_HR"].includes(user.role)
+              ? "/hr-dashboard"
+              : user.role === "ROLE_MANAGER"
+                ? "/manager-dashboard"
+              : "/dashboard",
       );
     } catch (requestError) {
       setError(requestError.message);

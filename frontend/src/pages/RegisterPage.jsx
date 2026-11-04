@@ -51,7 +51,11 @@ export default function RegisterPage() {
           ? "/mentor-dashboard"
           : user.role === "ROLE_EMPLOYEE"
             ? "/employee-dashboard"
-            : "/dashboard",
+            : ["ROLE_ADMIN", "ROLE_HR"].includes(user.role)
+              ? "/hr-dashboard"
+              : user.role === "ROLE_MANAGER"
+                ? "/manager-dashboard"
+              : "/dashboard",
         { replace: true },
       );
     } catch (requestError) {
@@ -110,6 +114,7 @@ export default function RegisterPage() {
             <option value="ROLE_EMPLOYEE">Employee</option>
             <option value="ROLE_MENTOR">Mentor</option>
             <option value="ROLE_HR">HR</option>
+            <option value="ROLE_MANAGER">Manager</option>
             <option value="ROLE_ADMIN">Admin</option>
           </select>
           <small>

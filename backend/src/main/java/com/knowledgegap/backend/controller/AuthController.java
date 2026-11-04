@@ -86,7 +86,8 @@ public class AuthController {
         if ("ROLE_ADMIN".equals(role)) {
             return "ROLE_ADMIN";
         }
-        if ("ROLE_HR".equals(role) || "ROLE_EMPLOYEE".equals(role) || "ROLE_MENTOR".equals(role)) {
+        if ("ROLE_HR".equals(role) || "ROLE_EMPLOYEE".equals(role) || "ROLE_MENTOR".equals(role)
+                || "ROLE_MANAGER".equals(role)) {
             return role;
         }
         return "ROLE_EMPLOYEE";
