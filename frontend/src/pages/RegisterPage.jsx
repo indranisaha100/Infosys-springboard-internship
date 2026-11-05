@@ -65,27 +65,18 @@ export default function RegisterPage() {
       }
 
       saveSession(user);
-
-      const dashboardRoutes = {
-        ROLE_EMPLOYEE: "/employee-dashboard",
-        ROLE_MENTOR: "/mentor-dashboard",
-        ROLE_HR: "/manager-dashboard",
-        ROLE_MANAGER: "/manager-dashboard",
-        ROLE_ADMIN: "/dashboard",
-      };
-
-      const destination = dashboardRoutes[user.role];
-
-      if (!destination) {
-        throw new Error(
-          `Unsupported account role: ${user.role}`
-        );
-      }
-
-      navigate(destination, {
-        replace: true,
-      });
-
+      navigate(
+        user.role === "ROLE_MENTOR"
+          ? "/mentor-dashboard"
+          : user.role === "ROLE_EMPLOYEE"
+            ? "/employee-dashboard"
+            : ["ROLE_ADMIN", "ROLE_HR"].includes(user.role)
+              ? "/hr-dashboard"
+              : user.role === "ROLE_MANAGER"
+                ? "/manager-dashboard"
+              : "/dashboard",
+        { replace: true },
+      );
     } catch (requestError) {
       setError(requestError.message);
     } finally {

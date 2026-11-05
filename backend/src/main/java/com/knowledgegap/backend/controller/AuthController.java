@@ -115,17 +115,9 @@ public class AuthController {
         if ("ROLE_ADMIN".equals(role)) {
             return "ROLE_ADMIN";
         }
-
-        if ("ROLE_HR".equals(role)) {
-            return "ROLE_HR";
-        }
-
-        if ("ROLE_MANAGER".equals(role)) {
-            return "ROLE_MANAGER";
-        }
-
-        if ("ROLE_MENTOR".equals(role)) {
-            return "ROLE_MENTOR";
+        if ("ROLE_HR".equals(role) || "ROLE_EMPLOYEE".equals(role) || "ROLE_MENTOR".equals(role)
+                || "ROLE_MANAGER".equals(role)) {
+            return role;
         }
 
         if ("ROLE_EMPLOYEE".equals(role)) {

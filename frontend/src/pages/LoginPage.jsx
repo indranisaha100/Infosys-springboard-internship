@@ -63,18 +63,17 @@ export default function LoginPage() {
 
       // Save authenticated session
       saveSession(user);
-
-      // Navigate according to actual backend role
-      const destination = getDashboardPath(user.role);
-
-      if (destination === "/login") {
-        throw new Error(
-          `Unsupported account role: ${user.role}`
-        );
-      }
-
-      navigate(destination, { replace: true });
-
+      navigate(
+        user.role === "ROLE_MENTOR"
+          ? "/mentor-dashboard"
+          : user.role === "ROLE_EMPLOYEE"
+            ? "/employee-dashboard"
+            : ["ROLE_ADMIN", "ROLE_HR"].includes(user.role)
+              ? "/hr-dashboard"
+              : user.role === "ROLE_MANAGER"
+                ? "/manager-dashboard"
+              : "/dashboard",
+      );
     } catch (requestError) {
       setError(requestError.message);
     } finally {
