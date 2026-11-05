@@ -167,7 +167,9 @@ public class MentorController {
         public ResponseEntity<?> unreadNotificationCount(
                         @RequestHeader(value = "Authorization", required = false) String authorization) {
                 Optional<com.knowledgegap.backend.model.User> mentor = authenticatedMentor(authorization);
-                if (mentor.isEmpty()) return unauthorized();
+                if (mentor.isEmpty()) {
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                }
                 return ResponseEntity.ok(Map.of("count", unreadNotifications(mentor.get()).size()));
         }
 
@@ -175,7 +177,9 @@ public class MentorController {
         public ResponseEntity<?> markNotificationsRead(
                         @RequestHeader(value = "Authorization", required = false) String authorization) {
                 Optional<com.knowledgegap.backend.model.User> mentor = authenticatedMentor(authorization);
-                if (mentor.isEmpty()) return unauthorized();
+                if (mentor.isEmpty()) {
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                }
                 List<HrNotification> visible = visibleNotifications();
                 Set<Long> ids = new HashSet<>(visible.stream().map(HrNotification::getId).toList());
                 Set<Long> readIds = new HashSet<>(notificationReadRepository
@@ -222,7 +226,9 @@ public class MentorController {
                         @RequestHeader(value = "Authorization", required = false) String authorization,
                         @PathVariable Long id) {
                 Optional<com.knowledgegap.backend.model.User> mentor = authenticatedMentor(authorization);
-                if (mentor.isEmpty()) return unauthorized();
+                if (mentor.isEmpty()) {
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                }
                 return resourceRepository.findById(id)
                                 .filter(resource -> resource.isActive() && resource.getPdfData() != null)
                                 .map(resource -> ResponseEntity.ok()
