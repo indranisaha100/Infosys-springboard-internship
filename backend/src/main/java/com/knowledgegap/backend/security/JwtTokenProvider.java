@@ -1,18 +1,28 @@
+
 package com.knowledgegap.backend.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
-    // Generates a secure random key for HS256 algorithm
-    private final SecretKey jwtSecret = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
-    private final long jwtExpirationMs = 86400000; // 24 hours validity
+    @Value("${app.jwt.secret}")
+    private String secret;
+
+    @Value("${app.jwt.expiration-ms:86400000}")
+    private long jwtExpirationMs;
+
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     // Generate JWT token using user email
     public String generateToken(String email) {
@@ -23,14 +33,14 @@ public class JwtTokenProvider {
                 .subject(email)
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(jwtSecret)
+                .signWith(getSigningKey())
                 .compact();
     }
 
     // Extract email from JWT token
     public String getEmailFromJWT(String token) {
         return Jwts.parser()
-                .verifyWith(jwtSecret)
+                .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
@@ -40,11 +50,14 @@ public class JwtTokenProvider {
     // Validate JWT token
     public boolean validateToken(String authToken) {
         try {
-            Jwts.parser().verifyWith(jwtSecret).build().parse(authToken);
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(authToken);
+
             return true;
         } catch (Exception ex) {
-            // Token is invalid, expired, or tampered with
+            return false;
         }
-        return false;
     }
 }
