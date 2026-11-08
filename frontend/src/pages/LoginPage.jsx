@@ -5,33 +5,14 @@ import { useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { request, saveSession } from "../services/api";
 
-function getDashboardPath(role) {
-  const normalizedRole = String(role || "")
-    .toUpperCase()
-    .replace(/^ROLE_/, "");
-
-  if (["HR", "ADMIN", "MANAGER"].includes(normalizedRole)) {
-    return "/manager-dashboard";
-  }
-
-  if (normalizedRole === "MENTOR") {
-    return "/mentor-dashboard";
-  }
-
-  if (normalizedRole === "EMPLOYEE") {
-    return "/employee-dashboard";
-  }
-
-  return "/login";
-}
-
 export default function LoginPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    email: "",
+    identifier: "",
     password: "",
   });
+  const [identifierType, setIdentifierType] = useState("email");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,17 +44,15 @@ export default function LoginPage() {
 
       // Save authenticated session
       saveSession(user);
-      navigate(
-        user.role === "ROLE_MENTOR"
-          ? "/mentor-dashboard"
-          : user.role === "ROLE_EMPLOYEE"
-            ? "/employee-dashboard"
-            : ["ROLE_ADMIN", "ROLE_HR"].includes(user.role)
-              ? "/hr-dashboard"
-              : user.role === "ROLE_MANAGER"
-                ? "/manager-dashboard"
-              : "/dashboard",
-      );
+      const paths = {
+        ROLE_MENTOR: "/mentor-dashboard",
+        ROLE_EMPLOYEE: "/employee-dashboard",
+        ROLE_HR: "/hr-dashboard",
+        ROLE_ADMIN: "/hr-dashboard",
+        ROLE_MANAGER: "/manager-dashboard",
+        ROLE_DEPARTMENT_HEAD: "/manager-dashboard",
+      };
+      navigate(paths[user.role] || "/login", { replace: true });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -89,12 +68,17 @@ export default function LoginPage() {
     >
       <form className="auth-form" onSubmit={submit}>
         <label>
-          Email address
+          Sign in with
+          <select value={identifierType} onChange={(event) => setIdentifierType(event.target.value)}>
+            <option value="email">Email address</option>
+            <option value="userId">User ID</option>
+          </select>
 
           <input
-            type="email"
-            name="email"
-            value={form.email}
+            type={identifierType === "email" ? "email" : "text"}
+            name="identifier"
+            placeholder={identifierType === "email" ? "name@company.com" : "EMP000123"}
+            value={form.identifier}
             onChange={update}
             required
           />

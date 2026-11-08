@@ -6,7 +6,8 @@ import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import MentorDashboardPage from "./pages/MentorDashboardPage";
 import HRDashboardPage from "./pages/HRDashboardPage";
-import ManagerDashboardPage from "./pages/ManagerDashboardPage";
+import ManagerDashboardPage from "./pages/ManagerDashboard";
+import InitialHrSetupPage from "./pages/InitialHrSetupPage";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/setup-hr" element={<InitialHrSetupPage />} />
       <Route path="/employee-dashboard" element={<DashboardPage />} />
       <Route path="/mentor-dashboard" element={<MentorDashboardPage />} />
       <Route path="/hr-dashboard" element={<HRDashboardPage />} />

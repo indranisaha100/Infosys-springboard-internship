@@ -1,3 +1,162 @@
+import { useState } from 'react'
+import './skillAssessment.css'
+import {
+  buildQuestions, clearResult, growth, loadDone, loadResult, recommendations,
+  saveResult, scoreByTopic, toggleDone,
+} from './skillAssessmentData'
+
+const LETTERS = ['A', 'B', 'C', 'D']
+
+const Icon = ({ children, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+)
+const ArrowLeft = () => <Icon><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></Icon>
+const ArrowRight = () => <Icon><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></Icon>
+const Check = () => <Icon><path d="M20 6 9 17l-5-5" /></Icon>
+const Clock = () => <Icon size={13}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></Icon>
+const Book = () => (
+  <Icon size={13}>
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </Icon>
+)
+const External = () => (
+  <Icon size={14}>
+    <path d="M15 3h6v6" /><path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </Icon>
+)
+const Retake = () => (
+  <Icon size={15}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+  </Icon>
+)
+
+/**
+ * Self-contained skills and assessment page.
+ * Optional prop: onComplete({ scores, recommendations, attempt }) persists a submitted attempt.
+ */
+export default function SkillAssessment({ onComplete, onRetake, persistedResult }) {
+  const [localSaved, setLocalSaved] = useState(loadResult)
+  const saved = persistedResult?.scores?.length ? persistedResult : localSaved
+  const [questions, setQuestions] = useState(buildQuestions)
+  const [index, setIndex] = useState(0)
+  const [answers, setAnswers] = useState({})
+  const [done, setDone] = useState(loadDone)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+
+  const total = questions.length
+  const answered = Object.keys(answers).length
+
+  const submit = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    setSubmitError('')
+    const scores = scoreByTopic(questions, answers)
+    const attempt = { questions, answers, submittedAt: new Date().toISOString() }
+    try {
+      await onComplete?.({ scores, recommendations: recommendations(scores), attempt })
+      saveResult(questions, answers, attempt.submittedAt)
+      setLocalSaved(loadResult())
+    } catch (error) {
+      setSubmitError(error.message || 'The assessment could not be saved. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // A retake builds a new set of questions.
+  const retake = () => {
+    clearResult()
+    setLocalSaved(null)
+    setQuestions(buildQuestions())
+    setAnswers({})
+    setIndex(0)
+    setSubmitError('')
+    onRetake?.()
+  }
+
+  if (saved) {
+    return (
+      <div className="sa-root">
+        <Results saved={saved} done={done} setDone={setDone} onRetake={retake} />
+      </div>
+    )
+  }
+
+  const q = questions[index]
+  const isLast = index === total - 1
+
+  return (
+    <div className="sa-root">
+      <div className="sa-wrap">
+        <div className="sa-card">
+          <div className="sa-between sa-small">
+            <span className="sa-step">Question {index + 1} of {total}</span>
+            <span className="sa-faint">{answered}/{total} answered</span>
+          </div>
+          <div className="sa-track">
+            <div className="sa-fill" style={{ width: `${((index + 1) / total) * 100}%` }} />
+          </div>
+
+          <div className="sa-topic">{q.topic}</div>
+          <h2 className="sa-question">{q.q}</h2>
+
+          <div className="sa-options" role="radiogroup" aria-label="Answers">
+            {q.options.map((opt, i) => {
+              const selected = answers[index] === i
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`sa-option${selected ? ' is-selected' : ''}`}
+                  onClick={() => setAnswers({ ...answers, [index]: i })}
+                >
+                  <span className="sa-chip">{LETTERS[i]}</span>
+                  <span>{opt}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="sa-nav">
+            <button type="button" className="sa-btn plain" disabled={index === 0}
+              onClick={() => setIndex(index - 1)}>
+              <ArrowLeft /> Previous
+            </button>
+
+            <div className="sa-dots">
+              {questions.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`Question ${i + 1}`}
+                  disabled={answers[i] === undefined && i !== index}
+                  className={`sa-dot${i === index ? ' current' : answers[i] !== undefined ? ' answered' : ''}`}
+                  onClick={() => setIndex(i)}
+                />
+              ))}
+            </div>
+
+            {isLast ? (
+              <button type="button" className="sa-btn primary" disabled={answered < total || submitting} onClick={submit}>
+                {submitting ? 'Saving assessment…' : 'Submit and get recommendations'}
+              </button>
+            ) : (
+              <button type="button" className="sa-btn primary" disabled={answers[index] === undefined}
+                onClick={() => setIndex(index + 1)}>
+                Next <ArrowRight />
+              </button>
+            )}
+          </div>
+        </div>
+        {submitError && <p className="sa-footer" role="alert">{submitError}</p>}
         <p className="sa-footer">
           Each attempt uses a different mix of questions. Submitted scores are saved to your employee record.
         </p>
@@ -5,7 +164,6 @@
     </div>
   )
 }
-
 function CourseRow({ course, topic, done, onToggle }) {
   const finished = done.includes(course.title)
   return (

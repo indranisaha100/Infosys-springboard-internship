@@ -20,11 +20,12 @@ export default function AuthLayout({ children, title, description, mode }) {
         </div>
         {children}
         <p className="switch-copy">
-          {mode === "login" ? "New to KGIP?" : "Already have an account?"}{" "}
+          {mode === "login" ? "New to KGIP?" : mode === "setup" ? "Return to sign in?" : "Already have an account?"}{" "}
           <Link to={mode === "login" ? "/register" : "/login"}>
             {mode === "login" ? "Create an account" : "Sign in"}
           </Link>
         </p>
+        {mode === "login" && <p className="switch-copy"><Link to="/setup-hr">Set up the first HR account</Link></p>}
       </section>
     </main>
   );
