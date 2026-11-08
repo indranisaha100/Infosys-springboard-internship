@@ -599,8 +599,17 @@ button, a, input, select, textarea {
 [class*="bg-blue-400"], [class*="bg-blue-300"] { background-color: var(--emerald-500) !important; }
 [class*="bg-blue-200"], [class*="bg-blue-100"], [class*="bg-blue-50"] { background-color: var(--mint-100) !important; }
 [class*="text-blue-950"], [class*="text-blue-900"], [class*="text-blue-800"] { color: var(--forest-900) !important; }
-[class*="text-blue-700"], [class*="text-blue-600"], [class*="text-blue-500"], [class*="text-blue-400"] { color: var(--emerald-700) !important; }
-[class*="text-blue-300"], [class*="text-blue-200"], [class*="text-blue-50"] { color: #c9e7d6 !important; }
+[class*="text-blue-700"], [class*="text-blue-600"], [class*="text-blue-500"], [class*="text-blue-400"],
+[class*="text-blue-300"], [class*="text-blue-200"], [class*="text-blue-50"] { color: var(--emerald-700) !important; }
+[class~="bg-[#0b1d35]"] [class*="text-blue-"],
+[class~="bg-[#172956]"] [class*="text-blue-"],
+[class*="bg-blue-950"] [class*="text-blue-"],
+[class*="bg-blue-900"] [class*="text-blue-"] { color: #c9e7d6 !important; }
+[class~="bg-[#172956]"][class*="text-blue-"] { color: #c9e7d6 !important; }
+[class*="text-slate-700"] { color: #294838 !important; }
+[class*="text-slate-600"] { color: #40564a !important; }
+[class*="text-slate-500"] { color: #52665b !important; }
+[class*="text-slate-400"], [class*="text-slate-300"] { color: #687c72 !important; }
 [class*="border-blue-"] { border-color: #b9d9c7 !important; }
 [class*="bg-violet-"] { background-color: var(--mint-100) !important; }
 [class*="text-violet-"] { color: var(--emerald-700) !important; }
