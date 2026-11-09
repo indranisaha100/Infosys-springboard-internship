@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { request } from "../services/api";
+import { downloadFile, request } from "../services/api";
 import SkillAssessment from "../../../skill-assessment/SkillAssessment";
 import { loadResult, scoreByTopic } from "../../../skill-assessment/skillAssessmentData";
 
 const navigation = [
-  ["dashboard", "Dashboard"], ["skills", "My Skills"], ["assessment", "Skill Assessment"], ["ai", "AI Recommendations"], ["gaps", "Knowledge Gaps"], ["learning", "Learning"],
-  ["bell", "Notifications"], ["report", "Reports"], ["profile", "My Profile"], ["settings", "Settings"],
+  ["dashboard", "Dashboard"], ["profile", "My Profile"], ["skills", "My Skills"], ["assessment", "Skill Assessment"],
+  ["gaps", "My Skill Gaps"], ["ai", "Learning Recommendations"], ["learning", "My Learning"],
+  ["learning", "Training Programmes"], ["report", "Feedback"],
+  ["profile", "Mentors"], ["profile", "Mentorship Requests"], ["learning", "Messages / Chatbox"],
+  ["learning", "Knowledge Hub"], ["learning", "Discussion Forum"], ["report", "My Progress"],
+  ["report", "Certificates"], ["bell", "Notifications"], ["settings", "Help & Support"],
 ];
 const gaps = [
   { name: "Product", current: 62, required: 77 },
@@ -52,6 +56,9 @@ function SectionPage({ activeItem, data, loading }) {
     "My Skills": "Track your capabilities and role readiness.",
     "Knowledge Gaps": "Prioritize the skills that will have the biggest impact.",
     Learning: "Continue building the skills that matter to your role.",
+    "My Learning": "Browse HR-published courses and learning resources.",
+    "Training Programmes": "See scheduled organisation learning programmes and dates.",
+    Feedback: "Review your submitted learning feedback.",
     Notifications: "Stay up to date with your SkillTrack workspace.",
     Reports: "Review your latest skill and readiness reports.",
     "My Profile": "Manage your employee profile information.",
@@ -70,13 +77,86 @@ function SectionPage({ activeItem, data, loading }) {
             <p className="text-sm text-blue-950">{data?.message || "Connected to the employee workspace."}</p>
             {data?.nextAction && <div className="mt-5 rounded-lg bg-blue-50 p-4 text-xs text-blue-800"><strong>Next action</strong><p className="mt-1">{data.nextAction}</p></div>}
             {data?.user && <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Name</strong><p className="mt-1 text-slate-600">{data.user.firstName} {data.user.lastName || ""}</p></div><div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Email</strong><p className="mt-1 text-slate-600">{data.user.email}</p></div></div>}
-            {data?.items && <div className="mt-5 grid gap-3 sm:grid-cols-2">{data.items.map((item) => <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-blue-900" key={item}>{item}<span className="float-right text-blue-500">→</span></div>)}</div>}
+            {data?.items && <div className="mt-5 grid gap-3 sm:grid-cols-2">{data.items.map((item, index) => {
+              const resource = typeof item === "string" ? null : item;
+              return <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-blue-900" key={resource?.id || item || index}>
+                <span>{resource ? `${resource.title} · ${resource.category}` : item}</span>
+                {resource?.pdfUrl && <button className="float-right font-semibold text-red-600" onClick={() => downloadFile(resource.pdfUrl, resource.pdfFileName)}>Download PDF</button>}
+                {!resource?.pdfUrl && <span className="float-right text-blue-500">→</span>}
+              </div>;
+            })}</div>}
             {!data?.items && !data?.user && !data?.nextAction && <div className="mt-5 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">This workspace page is connected and ready for your employee data.</div>}
           </>
         )}
       </div>
     </div>
   );
+}
+
+function MentorshipRequestsPage({ data, onRefresh }) {
+  const [mentorEmail, setMentorEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState("");
+  async function submit(event) {
+    event.preventDefault();
+    setFeedback("");
+    try {
+      await request("/mentorship/requests", {
+        method: "POST",
+        body: JSON.stringify({ mentorEmail, message }),
+      });
+      setMentorEmail("");
+      setMessage("");
+      setFeedback("Mentorship request sent.");
+      onRefresh();
+    } catch (error) {
+      setFeedback(error.message);
+    }
+  }
+  return <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+    <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Mentorship Requests</p><h1 className="m-0 text-2xl font-medium text-blue-950">Mentorship Requests</h1><p className="mt-2 text-xs text-slate-500">Request support from an available mentor using their approved account email.</p></div>
+    <form onSubmit={submit} className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
+      <label className="text-xs">Mentor email<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" type="email" value={mentorEmail} onChange={(event) => setMentorEmail(event.target.value)} required /></label>
+      <label className="text-xs">Message<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What would you like help with?" /></label>
+      <button className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white sm:col-span-2">Send request</button>
+      {feedback && <p className="text-xs text-slate-600 sm:col-span-2" role="status">{feedback}</p>}
+    </form>
+    <SectionPage activeItem="Your requests" data={data} loading={false} />
+  </div>;
+}
+
+function FeedbackPage({ data, onRefresh }) {
+  const [subject, setSubject] = useState("");
+  const [rating, setRating] = useState("5");
+  const [comment, setComment] = useState("");
+  const [status, setStatus] = useState("");
+  async function submit(event) {
+    event.preventDefault();
+    setStatus("");
+    try {
+      await request("/employee/feedback", {
+        method: "POST",
+        body: JSON.stringify({ subject, rating: Number(rating), comment }),
+      });
+      setSubject("");
+      setComment("");
+      setStatus("Feedback submitted.");
+      onRefresh();
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
+  return <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+    <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Feedback</p><h1 className="m-0 text-2xl font-medium text-blue-950">Learning feedback</h1><p className="mt-2 text-xs text-slate-500">Share feedback about a course or training programme.</p></div>
+    <form onSubmit={submit} className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
+      <label className="text-xs">Course or programme<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" value={subject} onChange={(event) => setSubject(event.target.value)} required /></label>
+      <label className="text-xs">Rating<select className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" value={rating} onChange={(event) => setRating(event.target.value)}><option value="5">5 - Excellent</option><option value="4">4 - Good</option><option value="3">3 - Average</option><option value="2">2 - Needs improvement</option><option value="1">1 - Poor</option></select></label>
+      <label className="text-xs sm:col-span-2">Comment<textarea className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" rows="3" value={comment} onChange={(event) => setComment(event.target.value)} /></label>
+      <button className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white sm:col-span-2">Submit feedback</button>
+      {status && <p className="text-xs text-slate-600 sm:col-span-2" role="status">{status}</p>}
+    </form>
+    <SectionPage activeItem="Feedback history" data={data} loading={false} />
+  </div>;
 }
 
 function KnowledgeGapsPage({ scores, onTakeAssessment }) {
@@ -262,6 +342,7 @@ export default function DashboardPage() {
   const [aiRecommendationFor, setAiRecommendationFor] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
@@ -277,6 +358,9 @@ export default function DashboardPage() {
         .catch((error) => {
           setAssessmentLoadError(`Saved assessment could not be loaded: ${error.message}`);
         });
+      request("/employee/notifications/unread-count")
+        .then((result) => setNotificationCount(Number.isInteger(result.count) ? result.count : 0))
+        .catch(() => setNotificationCount(0));
     }
   }, [navigate, user]);
 
@@ -292,12 +376,27 @@ export default function DashboardPage() {
       setSectionLoading(false);
       return;
     }
-    if (label === "Knowledge Gaps") {
+    if (label === "Knowledge Gaps" || label === "My Skill Gaps") {
       setSectionData(null);
       setSectionLoading(false);
       return;
     }
-    if (label === "AI Recommendations") {
+    if (label === "Mentorship Requests") {
+      setSectionLoading(true);
+      try {
+        const requests = await request("/mentorship/requests");
+        setSectionData({
+          message: requests.length ? "Your mentorship requests" : "You have not sent any mentorship requests yet.",
+          items: requests.map((item) => `${item.mentorEmail} · ${item.status}`),
+        });
+      } catch (error) {
+        setSectionData({ message: error.message });
+      } finally {
+        setSectionLoading(false);
+      }
+      return;
+    }
+    if (label === "AI Recommendations" || label === "Learning Recommendations") {
       setSectionData(null);
       setAiError("");
       setAiRecommendations(null);
@@ -326,16 +425,33 @@ export default function DashboardPage() {
     setSectionLoading(true);
     const sectionKeys = {
       "My Skills": "skills",
+      "My Skill Gaps": "gaps",
       "Knowledge Gaps": "gaps",
+      "My Learning": "learning",
+      "Training Programmes": "programmes",
+      Feedback: "feedback",
       Learning: "learning",
       Notifications: "notifications",
       Reports: "reports",
       "My Profile": "profile",
       Settings: "settings",
     };
+    if (!sectionKeys[label]) {
+      setSectionData({
+        message: label === "Messages / Chatbox"
+          ? "Messaging is limited to approved contacts and authorised conversations. Private chats are not shown here."
+          : `${label} is available in your employee workspace.`,
+      });
+      setSectionLoading(false);
+      return;
+    }
     try {
       const data = await request(`/employee/sections/${sectionKeys[label]}`);
       setSectionData(data);
+      if (label === "Notifications") {
+        await request("/employee/notifications/read", { method: "POST" });
+        setNotificationCount(0);
+      }
     } catch (error) {
       setSectionData({ message: error.message });
     } finally {
@@ -393,7 +509,7 @@ export default function DashboardPage() {
             const locked = label === "AI Recommendations" && !assessmentResult;
             return <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#315fae] text-white" : "text-blue-200 hover:bg-[#315fae]"} disabled:cursor-not-allowed disabled:opacity-50`} key={label} onClick={() => selectSection(label)} disabled={locked} title={locked ? "Complete the skill assessment to unlock recommendations" : undefined} aria-disabled={locked}>
               <Icon name={icon} className="h-[18px] w-[18px] shrink-0" /><span className="max-[650px]:hidden">{label}</span>
-              {label === "Notifications" && <b className="ml-auto grid h-[18px] w-[18px] place-items-center rounded-full bg-rose-500 text-[10px] text-white">3</b>}
+              {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
               {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
             </button>;
           })}
@@ -412,14 +528,14 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3 text-[11px] max-[650px]:hidden"><span className="text-slate-400">My workspace</span><b className="text-base text-slate-300">›</b><strong className="font-medium">{activeItem}</strong></div>
           <div className="ml-auto flex items-center gap-3">
             <div className="flex h-[38px] w-[307px] items-center gap-2 rounded-lg border border-slate-200 px-2.5 text-slate-400 max-[900px]:w-[220px] max-[650px]:w-[150px]"><span>⌕</span><input className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[11px] text-blue-950 outline-none" placeholder="Search skills, people or reports..." aria-label="Search" /><kbd className="whitespace-nowrap rounded border border-slate-200 px-1 text-[10px] max-[650px]:hidden">⌘ K</kbd></div>
-            <button className="relative grid h-[38px] w-[38px] place-items-center rounded-lg border border-slate-200 bg-white text-slate-500" aria-label="Notifications"><Icon name="bell" className="h-[18px] w-[18px]" /><b className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[9px] text-white">3</b></button>
+            <button className="relative grid h-[38px] w-[38px] rounded-lg border border-slate-200 bg-white text-slate-500" aria-label="Notifications" onClick={() => selectSection("Notifications")}><Icon name="bell" className="h-[18px] w-[18px]" />{notificationCount > 0 && <b className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}</button>
             <button className="grid grid-cols-[34px_95px_12px] grid-rows-2 gap-x-2 border-0 bg-transparent text-left max-[650px]:grid-cols-[30px_12px]" onClick={() => selectSection("My Profile")}>
               <span className="row-span-2 grid place-items-center rounded-lg border border-blue-200 bg-blue-50 text-[11px] font-bold text-blue-600">{initials}</span><strong className="text-[11px] max-[650px]:hidden">{firstName} {user.lastName || ""}</strong><small className="text-[9px] text-slate-400 max-[650px]:hidden">Product Designer</small><i className="col-start-3 row-span-2 self-center text-slate-400">⌄</i>
             </button>
           </div>
         </header>
         {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
-        {activeItem === "AI Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection("AI Recommendations", true)} /> : activeItem === "Knowledge Gaps" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+        {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gaps" || activeItem === "My Skill Gaps" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
           <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
         </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">

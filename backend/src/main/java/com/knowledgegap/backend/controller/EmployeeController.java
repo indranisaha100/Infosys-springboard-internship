@@ -4,9 +4,18 @@ import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.model.AssessmentScore;
 import com.knowledgegap.backend.model.AssessmentRecommendation;
 import com.knowledgegap.backend.model.RecommendationScoresRequest;
+import com.knowledgegap.backend.model.EmployeeNotificationRead;
+import com.knowledgegap.backend.model.HrNotification;
+import com.knowledgegap.backend.model.TrainingProgramme;
+import com.knowledgegap.backend.model.Feedback;
 import com.knowledgegap.backend.repository.AssessmentRecommendationRepository;
 import com.knowledgegap.backend.repository.AssessmentScoreRepository;
 import com.knowledgegap.backend.repository.UserRepository;
+import com.knowledgegap.backend.repository.LearningResourceRepository;
+import com.knowledgegap.backend.repository.HrNotificationRepository;
+import com.knowledgegap.backend.repository.EmployeeNotificationReadRepository;
+import com.knowledgegap.backend.repository.TrainingProgrammeRepository;
+import com.knowledgegap.backend.repository.FeedbackRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
 import com.knowledgegap.backend.service.GeminiRecommendationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,7 +25,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ContentDisposition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -44,18 +56,44 @@ public class EmployeeController {
     private final AssessmentScoreRepository assessmentScoreRepository;
     private final AssessmentRecommendationRepository assessmentRecommendationRepository;
     private final ObjectMapper objectMapper;
+    private final LearningResourceRepository learningResourceRepository;
+    private final HrNotificationRepository hrNotificationRepository;
+    private final EmployeeNotificationReadRepository employeeNotificationReadRepository;
+    private final TrainingProgrammeRepository trainingProgrammeRepository;
+    private final FeedbackRepository feedbackRepository;
 
+    @Autowired
     public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
             GeminiRecommendationService geminiRecommendationService,
             AssessmentScoreRepository assessmentScoreRepository,
             AssessmentRecommendationRepository assessmentRecommendationRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            LearningResourceRepository learningResourceRepository,
+            HrNotificationRepository hrNotificationRepository,
+            EmployeeNotificationReadRepository employeeNotificationReadRepository,
+            TrainingProgrammeRepository trainingProgrammeRepository,
+            FeedbackRepository feedbackRepository) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.geminiRecommendationService = geminiRecommendationService;
         this.assessmentScoreRepository = assessmentScoreRepository;
         this.assessmentRecommendationRepository = assessmentRecommendationRepository;
         this.objectMapper = objectMapper;
+        this.learningResourceRepository = learningResourceRepository;
+        this.hrNotificationRepository = hrNotificationRepository;
+        this.employeeNotificationReadRepository = employeeNotificationReadRepository;
+        this.trainingProgrammeRepository = trainingProgrammeRepository;
+        this.feedbackRepository = feedbackRepository;
+    }
+
+    public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
+            GeminiRecommendationService geminiRecommendationService,
+            AssessmentScoreRepository assessmentScoreRepository,
+            AssessmentRecommendationRepository assessmentRecommendationRepository,
+            ObjectMapper objectMapper) {
+        this(userRepository, jwtTokenProvider, geminiRecommendationService,
+                assessmentScoreRepository, assessmentRecommendationRepository, objectMapper,
+                null, null, null, null, null);
     }
 
     @PostMapping("/assessments")
@@ -208,19 +246,164 @@ public ResponseEntity<?> chat(
     @GetMapping("/sections/{section}")
     public ResponseEntity<?> section(@PathVariable String section,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
-        Optional<User> user = authenticatedUser(authorization);
+        Optional<User> user = authenticatedEmployee(authorization);
         if (user.isEmpty()) return unauthorized();
 
         return switch (section.toLowerCase()) {
             case "skills" -> ResponseEntity.ok(Map.of("section", "My Skills", "message", "Your 24 tracked skills are up to date.", "items", List.of("Product Strategy", "Advanced Prototyping", "Data-Informed Design", "Stakeholder Management")));
             case "gaps" -> ResponseEntity.ok(Map.of("section", "Knowledge Gaps", "message", "You have 6 skills to improve, including 2 high-priority gaps."));
-            case "learning" -> ResponseEntity.ok(Map.of("section", "Learning", "message", "Your learning progress is 68%.", "nextAction", "Continue Advanced Prototyping in Figma"));
-            case "notifications" -> ResponseEntity.ok(Map.of("section", "Notifications", "message", "You have 3 unread notifications.", "items", List.of("New role assessment available", "Advanced Prototyping course updated", "Your readiness increased by 6%")));
+            case "learning" -> ResponseEntity.ok(employeeLearning(user.get()));
+            case "programmes", "training-programmes" -> ResponseEntity.ok(employeeProgrammes());
+            case "feedback" -> ResponseEntity.ok(employeeFeedback(user.get()));
+            case "notifications" -> ResponseEntity.ok(employeeNotifications(user.get()));
             case "reports" -> ResponseEntity.ok(Map.of("section", "Reports", "message", "Your latest skills assessment report is ready."));
             case "profile" -> ResponseEntity.ok(Map.of("section", "My Profile", "user", userSummary(user.get())));
             case "settings" -> ResponseEntity.ok(Map.of("section", "Settings", "message", "Your workspace settings are available."));
             default -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Employee section not found."));
         };
+    }
+
+    private Map<String, Object> employeeLearning(User user) {
+        List<Map<String, Object>> resources = learningResourceRepository.findByActiveTrueOrderByTitleAsc().stream()
+                .map(resource -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", resource.getId());
+                    item.put("title", resource.getTitle());
+                    item.put("category", resource.getCategory());
+                    item.put("pdfFileName", resource.getPdfFileName());
+                    item.put("pdfUrl", resource.getPdfData() == null ? null : "/employee/resources/" + resource.getId() + "/pdf");
+                    return item;
+                })
+                .toList();
+        return Map.of(
+                "section", "My Learning",
+                "message", resources.isEmpty()
+                        ? "No learning resources have been published yet."
+                        : "Published learning resources available for your development.",
+                "items", resources,
+                "employeeEmail", user.getEmail());
+    }
+
+    @GetMapping("/resources/{id}/pdf")
+    public ResponseEntity<?> downloadLearningPdf(@RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable Long id) {
+        Optional<User> user = authenticatedEmployee(authorization);
+        if (user.isEmpty()) return unauthorized();
+        return learningResourceRepository.findById(id)
+                .filter(resource -> resource.isActive() && resource.getPdfData() != null)
+                .map(resource -> ResponseEntity.ok().contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                        .header(HttpHeaders.CONTENT_DISPOSITION,
+                                ContentDisposition.attachment().filename(resource.getPdfFileName()).build().toString())
+                        .body(resource.getPdfData()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private Map<String, Object> employeeProgrammes() {
+        List<String> programmes = trainingProgrammeRepository.findAllByOrderByStartDateAsc().stream()
+                .filter(programme -> !"CANCELLED".equalsIgnoreCase(programme.getStatus()))
+                .map(this::programmeSummary)
+                .toList();
+        return Map.of(
+                "section", "Training Programmes",
+                "message", programmes.isEmpty() ? "No training programmes are currently scheduled."
+                        : "Upcoming organisation training programmes.",
+                "items", programmes);
+    }
+
+    private Map<String, Object> employeeFeedback(User user) {
+        List<String> records = feedbackRepository.findByEmployeeEmailOrderBySubmittedAtDesc(user.getEmail()).stream()
+                .map(feedback -> feedback.getSubject() + " · Rating " + feedback.getRating() + "/5"
+                        + (feedback.getComment() == null || feedback.getComment().isBlank()
+                                ? "" : " · " + feedback.getComment()))
+                .toList();
+        return Map.of("section", "Feedback", "message",
+                records.isEmpty() ? "You have not submitted learning feedback yet." : "Your submitted learning feedback.",
+                "items", records);
+    }
+
+    @PostMapping("/feedback")
+    public ResponseEntity<?> submitFeedback(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody Feedback input) {
+        Optional<User> user = authenticatedEmployee(authorization);
+        if (user.isEmpty()) return unauthorized();
+        if (input == null || input.getSubject() == null || input.getSubject().isBlank()
+                || input.getRating() < 1 || input.getRating() > 5) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Subject and a rating from 1 to 5 are required."));
+        }
+        input.setId(null);
+        input.setEmployeeEmail(user.get().getEmail());
+        input.setSubmittedAt(Instant.now());
+        return ResponseEntity.status(HttpStatus.CREATED).body(feedbackRepository.save(input));
+    }
+
+    private String programmeSummary(TrainingProgramme programme) {
+        String dates = programme.getStartDate() == null ? "Date to be announced"
+                : programme.getStartDate() + (programme.getEndDate() == null ? "" : " to " + programme.getEndDate());
+        return programme.getName() + " · " + dates + " · "
+                + (programme.getStatus() == null ? "Upcoming" : programme.getStatus());
+    }
+
+    @GetMapping("/notifications/unread-count")
+    public ResponseEntity<?> unreadNotificationCount(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Optional<User> user = authenticatedEmployee(authorization);
+        if (user.isEmpty()) return unauthorized();
+        return ResponseEntity.ok(Map.of("count", unreadNotifications(user.get()).size()));
+    }
+
+    @PostMapping("/notifications/read")
+    public ResponseEntity<?> markNotificationsRead(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Optional<User> user = authenticatedEmployee(authorization);
+        if (user.isEmpty()) return unauthorized();
+
+        List<HrNotification> visible = visibleNotifications();
+        if (visible.isEmpty()) return ResponseEntity.ok(Map.of("message", "No notifications to mark as read."));
+        Set<Long> visibleIds = new HashSet<>(visible.stream().map(com.knowledgegap.backend.model.HrNotification::getId).toList());
+        Set<Long> readIds = new HashSet<>(employeeNotificationReadRepository
+                .findByEmployeeEmailAndNotificationIdIn(user.get().getEmail(), visibleIds).stream()
+                .map(EmployeeNotificationRead::getNotificationId).toList());
+        employeeNotificationReadRepository.saveAll(visible.stream()
+                .filter(notification -> !readIds.contains(notification.getId()))
+                .map(notification -> new EmployeeNotificationRead(user.get().getEmail(), notification.getId()))
+                .toList());
+        return ResponseEntity.ok(Map.of("message", "Notifications marked as read."));
+    }
+
+    private Map<String, Object> employeeNotifications(User user) {
+        List<String> notifications = visibleNotifications().stream()
+                .filter(notification -> notification.getAudience() == null
+                        || notification.getAudience().isBlank()
+                        || notification.getAudience().toLowerCase().contains("all")
+                        || notification.getAudience().toLowerCase().contains("employee"))
+                .map(notification -> notification.getTitle() + " — " + notification.getMessage())
+                .toList();
+        return Map.of(
+                "section", "Notifications",
+                "message", notifications.isEmpty()
+                        ? "You have no new notifications."
+                        : "You have " + notifications.size() + " HR notification(s).",
+                "items", notifications);
+    }
+
+    private List<HrNotification> visibleNotifications() {
+        return hrNotificationRepository.findAllByOrderBySentAtDesc().stream()
+                .filter(notification -> notification.getAudience() == null
+                        || notification.getAudience().isBlank()
+                        || notification.getAudience().toLowerCase().contains("all")
+                        || notification.getAudience().toLowerCase().contains("employee"))
+                .toList();
+    }
+
+    private List<HrNotification> unreadNotifications(User user) {
+        List<HrNotification> visible = visibleNotifications();
+        if (visible.isEmpty()) return List.of();
+        Set<Long> ids = new HashSet<>(visible.stream().map(HrNotification::getId).toList());
+        Set<Long> readIds = new HashSet<>(employeeNotificationReadRepository
+                .findByEmployeeEmailAndNotificationIdIn(user.getEmail(), ids).stream()
+                .map(EmployeeNotificationRead::getNotificationId).toList());
+        return visible.stream().filter(notification -> !readIds.contains(notification.getId())).toList();
     }
 
     private Optional<User> authenticatedUser(String authorization) {
