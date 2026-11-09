@@ -164,7 +164,6 @@ export default function SkillAssessment({ onComplete, onRetake, persistedResult 
     </div>
   )
 }
-
 function CourseRow({ course, topic, done, onToggle }) {
   const finished = done.includes(course.title)
   return (

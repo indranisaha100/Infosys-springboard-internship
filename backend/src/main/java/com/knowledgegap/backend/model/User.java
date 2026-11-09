@@ -22,4 +22,15 @@ public class User {
     private String firstName;
     private String lastName;
     private String role = "ROLE_EMPLOYEE";
+
+    @Column(unique = true)
+    private String userId;
+
+    private String requestedRole;
+    private String department;
+
+    private String status = "APPROVED";
+
+    @Column(length = 1000)
+    private String reviewNote;
 }

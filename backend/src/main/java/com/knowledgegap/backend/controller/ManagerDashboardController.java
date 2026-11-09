@@ -54,6 +54,7 @@ public class ManagerDashboardController {
 
         if (manager == null ||
                 !("ROLE_MANAGER".equals(manager.getRole())
+                || "ROLE_DEPARTMENT_HEAD".equals(manager.getRole())
                 || "ROLE_HR".equals(manager.getRole())
                 || "ROLE_ADMIN".equals(manager.getRole()))) {
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { request } from "../services/api";
+import { downloadFile, request } from "../services/api";
 
 const navigation = [
   ["grid", "Dashboard"],
@@ -11,7 +11,18 @@ const navigation = [
   ["sparkle", "Training Recommendations"],
   ["book", "Learning Progress"],
   ["calendar", "Mentorship Management"],
+  ["users", "Mentorship Requests"],
+  ["profile", "Mentor Profile"],
+  ["gap", "Mentee Skill Overview"],
+  ["chart", "Development Goals"],
+  ["calendar", "Mentoring Sessions"],
+  ["book", "Shared Resources"],
+  ["calendar", "Training Programmes"],
+  ["sparkle", "Knowledge Contributions"],
+  ["check", "Feedback"],
+  ["bell", "Notifications"],
   ["bell", "Alerts and Notifications"],
+  ["report", "Messages / Chatbox"],
   ["report", "Team Reports"],
   ["settings", "Settings"],
 ];
@@ -148,6 +159,16 @@ const sectionEndpoints = {
   "Learning Recommendations": "recommendations",
   "Learning Progress": "sessions",
   "Mentorship Management": "sessions",
+  "Mentorship Requests": "sessions",
+  "Mentee Skill Overview": "gaps",
+  "Development Goals": "sessions",
+  "Mentoring Sessions": "sessions",
+  "Shared Resources": "resources",
+  "Knowledge Contributions": "recommendations",
+  Feedback: "feedback",
+  "Training Programmes": "programmes",
+  Notifications: "notifications",
+  "Messages / Chatbox": "sessions",
   "Alerts and Notifications": "reports",
   "Team Reports": "reports",
   Settings: "settings",
@@ -197,6 +218,16 @@ function SectionWorkspace({ activeItem, data, dashboardData, loading, error, onS
             <strong className="mt-1 block text-2xl text-[#0b1d35]">{item.count}</strong>
           </article>)}
         </div>
+      ) : activeItem === "Shared Resources" ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {(data?.items || []).map((item) => <article key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><strong className="text-sm">{item.title}</strong><p className="mt-1 text-xs text-slate-500">{item.category}</p>{item.pdfUrl && <button className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-700" onClick={() => downloadFile(item.pdfUrl, item.pdfFileName)}>Download PDF</button>}</article>)}
+          {!data?.items?.length && <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">No shared resources available.</div>}
+        </div>
+      ) : activeItem === "Notifications" ? (
+        <div className="space-y-3">
+          {(data?.items || []).map((item, index) => <article key={`${item}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">{item}</article>)}
+          {!data?.items?.length && <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">No notifications available.</div>}
+        </div>
       ) : activeItem === "Employee Assessments" && assessments.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] border-collapse text-left text-xs">
@@ -234,6 +265,7 @@ export default function MentorDashboardPage() {
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [sectionError, setSectionError] = useState("");
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -241,6 +273,9 @@ export default function MentorDashboardPage() {
       .then((result) => { if (active) { setData(normalizeDashboardData(result)); setDataError(""); setAuthError(false); } })
       .catch((error) => { if (active) { setDataError(error.message); setAuthError(error.status === 401); } });
     loadDashboard();
+    request("/mentor/notifications/unread-count")
+      .then((result) => { if (active) setNotificationCount(Number.isInteger(result.count) ? result.count : 0); })
+      .catch(() => { if (active) setNotificationCount(0); });
     const refresh = window.setInterval(loadDashboard, 30000);
     return () => { active = false; window.clearInterval(refresh); };
   }, []);
@@ -248,20 +283,35 @@ export default function MentorDashboardPage() {
   useEffect(() => {
     const endpoint = sectionEndpoints[activeItem];
     if (!endpoint) {
-      setSectionData(null);
-      setSectionLoading(false);
-      setSectionError("");
       return undefined;
     }
     let active = true;
-    setSectionData(null);
-    setSectionError("");
-    setSectionLoading(true);
     request(`/mentor/sections/${endpoint}`)
-      .then((result) => { if (active) setSectionData(result); })
+      .then((result) => {
+        if (active) {
+          setSectionData(result);
+          if (activeItem === "Notifications") {
+            setNotificationCount(0);
+            request("/mentor/notifications/read", { method: "POST" }).catch(() => {
+              if (active) setMessage("Notifications are visible, but could not be marked as read.");
+            });
+          }
+        }
+      })
       .catch((error) => { if (active) setSectionError(error.message); })
       .finally(() => { if (active) setSectionLoading(false); });
     return () => { active = false; };
+  }, [activeItem]);
+
+  useEffect(() => {
+    if (activeItem !== "Mentorship Requests") return;
+    request("/mentorship/requests")
+      .then((requests) => setSectionData({
+        section: "Mentorship Requests",
+        message: requests.length ? "Review incoming mentorship requests." : "No mentorship requests yet.",
+        requests,
+      }))
+      .catch((error) => setSectionError(error.message));
   }, [activeItem]);
 
   const mentees = useMemo(() => data.mentees.filter((mentee) => {
@@ -299,7 +349,7 @@ export default function MentorDashboardPage() {
     <section className="ml-64 min-h-screen max-lg:ml-[76px] max-md:ml-0">
       <header className="mentor-header sticky top-0 z-10 flex min-h-[78px] items-center justify-between gap-5 border-b border-slate-200 bg-white/95 px-8 backdrop-blur max-md:px-4">
         <div><p className="m-0 text-xs font-medium text-slate-400">Mentor workspace / {activeItem}</p><h1 className="m-0 mt-1 text-xl font-bold text-[#0b1d35]">{activeItem === "Dashboard" ? "Mentor Dashboard" : activeItem}</h1></div>
-        <div className="flex min-w-0 items-center gap-3"><label className="mentor-search flex h-10 w-64 shrink items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-400 max-md:w-10 max-md:justify-center max-md:px-0"><Icon name="search" className="h-4 w-4 shrink-0" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="mentor-search-input min-w-0 flex-1 bg-transparent text-xs text-[#0b1d35] outline-none max-md:hidden" placeholder="Search mentees..." aria-label="Search mentees" /></label><button className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50" onClick={() => showMessage("You have 3 unread notifications.")} aria-label="Notifications"><Icon name="bell" className="h-[18px] w-[18px]" /><span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" /></button><div className="flex shrink-0 items-center gap-2 border-l border-slate-200 pl-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-100 text-xs font-bold text-blue-700">{initials}</span><div className="max-md:hidden"><strong className="block text-xs">{firstName} {user?.lastName || ""}</strong><small className="text-[10px] text-slate-400">Mentor</small></div></div><button onClick={signOut} className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100" aria-label="Logout"><span aria-hidden="true">↪</span><span className="max-sm:hidden">Logout</span></button></div>
+        <div className="flex min-w-0 items-center gap-3"><label className="mentor-search flex h-10 w-64 shrink items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-400 max-md:w-10 max-md:justify-center max-md:px-0"><Icon name="search" className="h-4 w-4 shrink-0" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="mentor-search-input min-w-0 flex-1 bg-transparent text-xs text-[#0b1d35] outline-none max-md:hidden" placeholder="Search mentees..." aria-label="Search mentees" /></label><button className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50" onClick={() => setActiveItem("Notifications")} aria-label="Notifications"><Icon name="bell" className="h-[18px] w-[18px]" />{notificationCount > 0 && <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</span>}</button><div className="flex shrink-0 items-center gap-2 border-l border-slate-200 pl-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-100 text-xs font-bold text-blue-700">{initials}</span><div className="max-md:hidden"><strong className="block text-xs">{firstName} {user?.lastName || ""}</strong><small className="text-[10px] text-slate-400">Mentor</small></div></div><button onClick={signOut} className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100" aria-label="Logout"><span aria-hidden="true">↪</span><span className="max-sm:hidden">Logout</span></button></div>
       </header>
 
       <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-8 max-md:px-4 max-md:pb-24">
