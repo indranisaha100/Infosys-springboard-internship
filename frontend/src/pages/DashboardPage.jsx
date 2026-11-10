@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { downloadFile, request } from "../services/api";
 import SkillAssessment from "../../../skill-assessment/SkillAssessment";
 import { loadResult, scoreByTopic } from "../../../skill-assessment/skillAssessmentData";
+import MessagesPanel from "./MessagesPanel";
 
 const navigation = [
   ["dashboard", "Dashboard"], ["profile", "My Profile"], ["skills", "My Skills"], ["assessment", "Skill Assessment"],
@@ -538,7 +539,7 @@ export default function DashboardPage() {
         {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gaps" || activeItem === "My Skill Gaps" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
           <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
-        </div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
+        </div>  : activeItem === "Messages / Chatbox" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4"><MessagesPanel /></div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>
             <div className="flex items-center gap-3 max-[650px]:w-full max-[650px]:flex-wrap">

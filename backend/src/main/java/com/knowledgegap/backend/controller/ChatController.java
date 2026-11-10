@@ -299,6 +299,48 @@ public class ChatController {
         reports.save(report);
         return ResponseEntity.ok(Map.of("message", "Report submitted."));
     }
+    // Mentors an employee can request. Status comes from the shared mentorship_requests table.
+    @GetMapping("/mentors")
+    public ResponseEntity<?> mentors(
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        Optional<User> me = currentUser.from(auth).filter(u -> "ROLE_EMPLOYEE".equals(u.getRole()));
+        if (me.isEmpty()) return unauthorized();
+        String myEmail = me.get().getEmail();
+        List<MentorshipRequest> mine =
+                mentorship.findByEmployeeEmailOrMentorEmailOrderByCreatedAtDesc(myEmail, myEmail);
+        List<Map<String, Object>> list = users.findByRole("ROLE_MENTOR").stream().map(m -> {
+            String status = "NONE";
+            for (MentorshipRequest r : mine) {
+                if (!myEmail.equalsIgnoreCase(r.getEmployeeEmail())
+                        || !m.getEmail().equalsIgnoreCase(r.getMentorEmail())) continue;
+                if ("ACCEPTED".equals(r.getStatus())) { status = "ACCEPTED"; break; }
+                if ("PENDING".equals(r.getStatus())) status = "PENDING";
+            }
+            return Map.<String, Object>of("name", currentUser.displayName(m), "email", m.getEmail(),
+                    "status", status);
+        }).toList();
+        return ResponseEntity.ok(list);
+    }
+
+    // Pending mentorship requests for the logged-in mentor, with employee names.
+    @GetMapping("/mentor-requests")
+    public ResponseEntity<?> mentorRequests(
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        Optional<User> me = currentUser.from(auth).filter(u -> "ROLE_MENTOR".equals(u.getRole()));
+        if (me.isEmpty()) return unauthorized();
+        String myEmail = me.get().getEmail();
+        List<Map<String, Object>> list =
+                mentorship.findByEmployeeEmailOrMentorEmailOrderByCreatedAtDesc(myEmail, myEmail).stream()
+                        .filter(r -> myEmail.equalsIgnoreCase(r.getMentorEmail()) && "PENDING".equals(r.getStatus()))
+                        .map(r -> Map.<String, Object>of(
+                                "id", r.getId(),
+                                "name", users.findByEmail(r.getEmployeeEmail())
+                                        .map(currentUser::displayName).orElse(r.getEmployeeEmail()),
+                                "message", r.getMessage() == null ? "" : r.getMessage(),
+                                "createdAt", r.getCreatedAt().toString()))
+                        .toList();
+        return ResponseEntity.ok(list);
+    }
 
     private ResponseEntity<?> setFlag(String auth, Long id, boolean value, boolean mute) {
         Optional<User> me = currentUser.from(auth);
@@ -350,8 +392,12 @@ public class ChatController {
     }
 
     private boolean mentored(String employeeEmail, String mentorEmail) {
-        return mentorship.findByEmployeeEmailAndMentorEmail(employeeEmail, mentorEmail).stream()
-                .anyMatch(r -> "ACCEPTED".equals(r.getStatus()));
+        //return false;
+        return mentorship.findByEmployeeEmailOrMentorEmailOrderByCreatedAtDesc(employeeEmail, employeeEmail)
+                .stream()
+                .anyMatch(r -> employeeEmail.equalsIgnoreCase(r.getEmployeeEmail())
+                        && mentorEmail.equalsIgnoreCase(r.getMentorEmail())
+                        && "ACCEPTED".equals(r.getStatus()));
     }
 
     private Optional<User> peerOf(Long conversationId, String myEmail) {

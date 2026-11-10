@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { downloadFile, request } from "../services/api";
+import MessagesPanel from "./MessagesPanel";
 
 const navigation = [
   ["grid", "Dashboard"],
@@ -337,7 +338,7 @@ export default function MentorDashboardPage() {
   if (user.role !== "ROLE_MENTOR") return <Navigate to="/dashboard" replace />;
 
   return <main className="min-h-screen bg-[#f7f9fc] font-sans text-[#0b1d35]">
-    <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col bg-[#0b1d35] px-4 py-6 max-lg:w-[76px] max-lg:px-3 max-md:hidden">
+    <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col overflow-y-auto bg-[#0b1d35] px-4 py-6 max-lg:w-[76px] max-lg:px-3 max-md:hidden">
       <Logo />
       <p className="mb-3 mt-10 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-blue-300 max-lg:hidden">Mentor workspace</p>
       <nav className="space-y-1" aria-label="Mentor workspace">
@@ -355,7 +356,7 @@ export default function MentorDashboardPage() {
       <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-8 max-md:px-4 max-md:pb-24">
         {message && <div role="status" className="fixed right-6 top-24 z-30 rounded-xl bg-[#0b1d35] px-4 py-3 text-xs font-medium text-white shadow-xl">{message}</div>}
         {dataError && <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><span>{authError ? "Your mentor session is missing or expired. Sign in again to load live data." : `Live mentor data could not be loaded: ${dataError}`}</span><button className="font-semibold underline" onClick={() => authError ? signOut() : window.location.reload()}>{authError ? "Sign in" : "Retry"}</button></div>}
-        {activeItem !== "Dashboard" ? <SectionWorkspace activeItem={activeItem} data={sectionData} dashboardData={data} loading={sectionLoading} error={sectionError} onSelectMentee={(employee) => showMessage(`${employee.name} selected. Assessment and mentoring actions are ready.`)} /> : <>
+        {(activeItem === "Messages" || activeItem === "Messages / Chatbox") ? <MessagesPanel/> : activeItem !== "Dashboard" ? <SectionWorkspace activeItem={activeItem} data={sectionData} dashboardData={data} loading={sectionLoading} error={sectionError} onSelectMentee={(employee) => showMessage(`${employee.name} selected. Assessment and mentoring actions are ready.`)} /> : <>
           <section className="flex items-center justify-between gap-5 rounded-2xl bg-gradient-to-br from-[#123c71] to-[#1d5eb1] p-7 text-white shadow-lg shadow-blue-900/10 max-md:flex-col max-md:items-start"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-blue-200">Tuesday, October 27, 2026</p>          <h2 className="m-0 text-3xl font-bold tracking-tight">Welcome back, Mentor!</h2><p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Help your mentees grow by identifying skill gaps and recommending personalized learning paths.</p>
 </div><button onClick={() => showMessage("Session scheduler opened — choose a mentee to continue.")} className="shrink-0 rounded-xl bg-white px-4 py-3 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50">+ Schedule Mentoring Session</button></section>          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{data.stats.map((stat) => <StatCard key={stat.label} stat={stat} />)}</section>
 
