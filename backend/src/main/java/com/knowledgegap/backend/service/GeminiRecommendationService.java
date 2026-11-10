@@ -40,10 +40,11 @@ public class GeminiRecommendationService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         Map<String, Object> part = Map.of("text", prompt);
         Map<String, Object> content = Map.of("parts", List.of(part));
-        Map<String, Object> responseFormat = Map.of("text", Map.of(
-                "mimeType", "APPLICATION_JSON",
-                "schema", skillPlanSchema()));
-        Map<String, Object> generationConfig = Map.of("responseFormat", responseFormat);
+        //Map<String, Object> responseFormat = Map.of("text", Map.of(
+            //    "mimeType", "APPLICATION_JSON",
+          //      "schema", skillPlanSchema()));
+        Map<String, Object> generationConfig = Map.of("responseMimeType", "application/json",
+         "responseJsonSchema",skillPlanSchema());
         Map<String, Object> body = Map.of(
                 "contents", List.of(content),
                 "generationConfig", generationConfig);
@@ -57,6 +58,7 @@ public class GeminiRecommendationService {
             validateSkillPlan(plan, scores);
             return plan;
         } catch (HttpClientErrorException exception) {
+            System.err.println("Gemini error:"+exception.getResponseBodyAsString());
             if (exception.getStatusCode().value() == 429) {
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                         "Gemini request limit reached. Try again later.");
@@ -344,4 +346,46 @@ public class GeminiRecommendationService {
             return "Error communicating with Gemini API: " + e.getMessage();
         }
     }
+    public String chat(String name, List<RecommendationScoresRequest.ScoreDto> scores, String message) {
+    if (apiKey == null || apiKey.isBlank()) {
+        throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "GEMINI_API_KEY is not configured.");
+    }
+    StringBuilder p = new StringBuilder(
+            "You are a friendly learning and career coach inside a workplace skill-tracking app. "
+            + "You can answer any question about skills, courses, learning paths and certifications. "
+            + "Always take the employee's assessment scores below into account: when you recommend "
+            + "a course or skill, relate it to their weaker areas (below target) first, and say briefly why. "
+            + "Be practical and concise. Suggest well-known providers or official documentation, "
+            + "but do not claim any course or link was verified. "
+            + "If the question is unrelated to learning or work skills, politely steer back.\n");
+    p.append("Employee name: ").append(name).append("\n");
+    if (scores.isEmpty()) {
+        p.append("No assessment submitted yet. Answer generally and suggest taking the assessment.\n");
+    } else {
+        p.append("Latest assessment scores (right/total, target):\n");
+        for (var s : scores) {
+            String status = s.getRight() >= s.getTarget() ? "at target" : "below target";
+            p.append("- ").append(s.getTopic()).append(": ").append(s.getRight()).append("/")
+                    .append(s.getTotal()).append(", target ").append(s.getTarget())
+                    .append(" (").append(status).append(")\n");
+        }
+    }
+    p.append("Question: ").append(message);
+
+    HttpHeaders h = new HttpHeaders();
+    h.setContentType(MediaType.APPLICATION_JSON);
+    h.set("x-goog-api-key", apiKey);
+    Map<String, Object> body = Map.of("contents",
+            List.of(Map.of("parts", List.of(Map.of("text", p.toString())))));
+    String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent";
+    try {
+        ResponseEntity<Map> r = new RestTemplate().postForEntity(url, new HttpEntity<>(body, h), Map.class);
+        return extractResponseText(r.getBody());
+    } catch (HttpClientErrorException e) {
+        System.err.println("Gemini chat error: " + e.getResponseBodyAsString());
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Chat is unavailable right now.");
+    } catch (RestClientException | IllegalArgumentException e) {
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Chat is unavailable right now.");
+    }
+   }
 }

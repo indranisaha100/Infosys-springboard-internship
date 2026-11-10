@@ -29,6 +29,15 @@ public class UserPasswordMigration implements CommandLineRunner {
         user.setRole("ROLE_EMPLOYEE");
         changed = true;
       }
+      // Rows created before the approval workflow were active accounts.
+      if (user.getStatus() == null || user.getStatus().isBlank()) {
+        user.setStatus("APPROVED");
+        changed = true;
+      }
+      if (user.getUserId() == null || user.getUserId().isBlank()) {
+        user.setUserId(userIdFor(user));
+        changed = true;
+      }
       if (changed) {
         userRepository.save(user);
       }
@@ -39,5 +48,16 @@ public class UserPasswordMigration implements CommandLineRunner {
     return password.startsWith("$2a$")
         || password.startsWith("$2b$")
         || password.startsWith("$2y$");
+  }
+
+  private String userIdFor(User user) {
+    String prefix = switch (user.getRole()) {
+      case "ROLE_HR", "ROLE_ADMIN" -> "HR";
+      case "ROLE_MANAGER" -> "MGR";
+      case "ROLE_MENTOR" -> "MEN";
+      case "ROLE_DEPARTMENT_HEAD" -> "DH";
+      default -> "EMP";
+    };
+    return prefix + String.format("%06d", user.getId());
   }
 }
