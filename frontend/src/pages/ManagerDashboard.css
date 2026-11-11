@@ -8,7 +8,12 @@
   display: flex;
   background: #f4f7fb;
   color: #192d49;
-  font-family: Arial, sans-serif;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.manager-brand > span svg {
+  width: 22px;
+  height: 22px;
 }
 
 .manager-main {
@@ -23,7 +28,7 @@
 .manager-sidebar {
   width: 255px;
   min-height: 100vh;
-  background: #10243f;
+  background: #0b2b22;
   color: white;
   padding: 25px 17px;
   display: flex;
@@ -39,9 +44,14 @@
 }
 
 .manager-brand > span {
-  border: 1px solid #65c8e9;
-  color: #65c8e9;
-  padding: 12px;
+  border: 1px solid #72cba6;
+  color: #0b2b22;
+  background: #72cba6;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
   border-radius: 12px;
   font-weight: bold;
 }
@@ -73,10 +83,10 @@
   width: 100%;
   border: 0;
   background: transparent;
-  color: #c4d0e0;
+  color: #c9e7d6;
   padding: 13px 12px;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
   display: flex;
@@ -91,7 +101,7 @@
 
 .manager-nav button:hover,
 .manager-nav button.active {
-  background: #244363;
+  background: #208967;
   color: white;
 }
 
@@ -115,52 +125,6 @@
 /* =====================================
    TOPBAR
 ===================================== */
-
-.manager-topbar {
-  height: 76px;
-  background: white;
-  border-bottom: 1px solid #e7eaf0;
-  padding: 0 32px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.manager-topbar > div:first-child {
-  font-size: 13px;
-}
-
-.manager-topbar span {
-  color: #8290a5;
-}
-
-.manager-profile {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.manager-profile strong,
-.manager-profile small {
-  display: block;
-}
-
-.manager-profile small {
-  color: #8794a8;
-  margin-top: 5px;
-  font-size: 11px;
-}
-
-.manager-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #dceeff;
-  display: grid;
-  place-items: center;
-  color: #2868a5 !important;
-  font-weight: bold;
-}
 
 /* =====================================
    MAIN CONTENT
@@ -1029,10 +993,6 @@
     padding: 16px;
   }
 
-  .manager-topbar {
-    padding: 0 15px;
-  }
-
   .manager-welcome {
     padding: 20px;
   }
@@ -1075,15 +1035,6 @@
   .manager-stats {
     grid-template-columns: 1fr;
   }
-
-  .manager-profile > div {
-    display: none;
-  }
-
-  .manager-topbar {
-    font-size: 11px;
-  }
-
   .manager-panel {
     padding: 15px;
   }

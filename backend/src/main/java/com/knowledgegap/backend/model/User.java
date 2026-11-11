@@ -28,6 +28,8 @@ public class User {
 
     private String requestedRole;
     private String department;
+    @Column(length = 2000)
+    private String expertise;
 
     private String status = "APPROVED";
 

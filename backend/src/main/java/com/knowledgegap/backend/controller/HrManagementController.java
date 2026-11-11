@@ -249,9 +249,39 @@ public class HrManagementController {
     public ResponseEntity<?> mentors(@RequestHeader(value = "Authorization", required = false) String auth) {
         if (!authorized(auth)) return unauthorized();
         return ResponseEntity.ok(users.findByRole("ROLE_MENTOR").stream()
-                .map(user -> Map.of("id", user.getId(), "name", (user.getFirstName() + " " + user.getLastName()).trim(),
-                        "email", user.getEmail()))
+                .filter(user -> user.getStatus() == null || "APPROVED".equalsIgnoreCase(user.getStatus()))
+                .map(user -> Map.of(
+                        "id", user.getId(),
+                        "name", ((user.getFirstName() == null ? "" : user.getFirstName()) + " "
+                                + (user.getLastName() == null ? "" : user.getLastName())).trim(),
+                        "email", user.getEmail(),
+                        "department", user.getDepartment() == null ? "" : user.getDepartment(),
+                        "expertise", user.getExpertise() == null ? "" : user.getExpertise()))
                 .toList());
+    }
+
+    @PutMapping("/mentors/{id}/expertise")
+    public ResponseEntity<?> updateMentorExpertise(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> input) {
+        if (!authorized(auth)) return unauthorized();
+        if (input == null) return bad("Mentor expertise is required.");
+        String expertise = input.getOrDefault("expertise", "").trim();
+        if (expertise.length() > 2000) return bad("Mentor expertise must be 2000 characters or fewer.");
+        Optional<User> optionalMentor = users.findById(id)
+                .filter(user -> "ROLE_MENTOR".equals(user.getRole()));
+        if (optionalMentor.isEmpty()) return ResponseEntity.notFound().build();
+        User mentor = optionalMentor.get();
+        mentor.setExpertise(expertise);
+        User saved = users.save(mentor);
+        return ResponseEntity.ok(Map.of(
+                "id", saved.getId(),
+                "name", ((saved.getFirstName() == null ? "" : saved.getFirstName()) + " "
+                        + (saved.getLastName() == null ? "" : saved.getLastName())).trim(),
+                "email", saved.getEmail(),
+                "department", saved.getDepartment() == null ? "" : saved.getDepartment(),
+                "expertise", saved.getExpertise() == null ? "" : saved.getExpertise()));
     }
 
     @GetMapping("/learning-progress")

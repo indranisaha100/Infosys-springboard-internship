@@ -24,6 +24,8 @@ public class HrNotification {
     @Column(nullable = false)
     private String audience;
 
+    private String recipientEmail;
+
     @Column(nullable = false)
     private Instant sentAt = Instant.now();
 }

@@ -308,7 +308,9 @@ public class ChatController {
         String myEmail = me.get().getEmail();
         List<MentorshipRequest> mine =
                 mentorship.findByEmployeeEmailOrMentorEmailOrderByCreatedAtDesc(myEmail, myEmail);
-        List<Map<String, Object>> list = users.findByRole("ROLE_MENTOR").stream().map(m -> {
+        List<Map<String, Object>> list = users.findByRole("ROLE_MENTOR").stream()
+                .filter(mentor -> mentor.getStatus() == null || "APPROVED".equalsIgnoreCase(mentor.getStatus()))
+                .map(m -> {
             String status = "NONE";
             for (MentorshipRequest r : mine) {
                 if (!myEmail.equalsIgnoreCase(r.getEmployeeEmail())

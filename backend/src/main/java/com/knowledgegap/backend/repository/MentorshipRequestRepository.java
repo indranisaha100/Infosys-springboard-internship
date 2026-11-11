@@ -6,4 +6,7 @@ import java.util.List;
 
 public interface MentorshipRequestRepository extends JpaRepository<MentorshipRequest, Long> {
     List<MentorshipRequest> findByEmployeeEmailOrMentorEmailOrderByCreatedAtDesc(String employeeEmail, String mentorEmail);
+
+    List<MentorshipRequest> findByMentorEmailIgnoreCaseOrderByCreatedAtDesc(String mentorEmail);
+
 }

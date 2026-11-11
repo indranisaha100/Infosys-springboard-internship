@@ -16,6 +16,7 @@ import com.knowledgegap.backend.repository.HrNotificationRepository;
 import com.knowledgegap.backend.repository.EmployeeNotificationReadRepository;
 import com.knowledgegap.backend.repository.TrainingProgrammeRepository;
 import com.knowledgegap.backend.repository.FeedbackRepository;
+import com.knowledgegap.backend.repository.LearningEnrollmentRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
 import com.knowledgegap.backend.service.GeminiRecommendationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -61,6 +62,7 @@ public class EmployeeController {
     private final EmployeeNotificationReadRepository employeeNotificationReadRepository;
     private final TrainingProgrammeRepository trainingProgrammeRepository;
     private final FeedbackRepository feedbackRepository;
+    private final LearningEnrollmentRepository learningEnrollmentRepository;
 
     @Autowired
     public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
@@ -72,7 +74,8 @@ public class EmployeeController {
             HrNotificationRepository hrNotificationRepository,
             EmployeeNotificationReadRepository employeeNotificationReadRepository,
             TrainingProgrammeRepository trainingProgrammeRepository,
-            FeedbackRepository feedbackRepository) {
+            FeedbackRepository feedbackRepository,
+            LearningEnrollmentRepository learningEnrollmentRepository) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.geminiRecommendationService = geminiRecommendationService;
@@ -84,6 +87,22 @@ public class EmployeeController {
         this.employeeNotificationReadRepository = employeeNotificationReadRepository;
         this.trainingProgrammeRepository = trainingProgrammeRepository;
         this.feedbackRepository = feedbackRepository;
+        this.learningEnrollmentRepository = learningEnrollmentRepository;
+    }
+
+    public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
+            GeminiRecommendationService geminiRecommendationService,
+            AssessmentScoreRepository assessmentScoreRepository,
+            AssessmentRecommendationRepository assessmentRecommendationRepository,
+            ObjectMapper objectMapper,
+            LearningResourceRepository learningResourceRepository,
+            HrNotificationRepository hrNotificationRepository,
+            EmployeeNotificationReadRepository employeeNotificationReadRepository,
+            TrainingProgrammeRepository trainingProgrammeRepository,
+            FeedbackRepository feedbackRepository) {
+        this(userRepository, jwtTokenProvider, geminiRecommendationService, assessmentScoreRepository,
+                assessmentRecommendationRepository, objectMapper, learningResourceRepository, hrNotificationRepository,
+                employeeNotificationReadRepository, trainingProgrammeRepository, feedbackRepository, null);
     }
 
     public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
@@ -93,7 +112,7 @@ public class EmployeeController {
             ObjectMapper objectMapper) {
         this(userRepository, jwtTokenProvider, geminiRecommendationService,
                 assessmentScoreRepository, assessmentRecommendationRepository, objectMapper,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     @PostMapping("/assessments")
@@ -275,12 +294,25 @@ public ResponseEntity<?> chat(
                     return item;
                 })
                 .toList();
+        List<Map<String, Object>> assignedPrograms = learningEnrollmentRepository == null ? List.of()
+                : learningEnrollmentRepository.findByEmployeeEmailIgnoreCaseOrderByUpdatedAtDesc(user.getEmail())
+                        .stream()
+                        .map(enrollment -> {
+                            Map<String, Object> item = new LinkedHashMap<>();
+                            item.put("title", enrollment.getLearningTitle());
+                            item.put("status", enrollment.getStatus());
+                            item.put("progressPercent", enrollment.getProgressPercent());
+                            item.put("mentorEmail", enrollment.getMentorEmail());
+                            return item;
+                        })
+                        .toList();
         return Map.of(
                 "section", "My Learning",
                 "message", resources.isEmpty()
                         ? "No learning resources have been published yet."
                         : "Published learning resources available for your development.",
                 "items", resources,
+                "enrollments", assignedPrograms,
                 "employeeEmail", user.getEmail());
     }
 
@@ -358,7 +390,7 @@ public ResponseEntity<?> chat(
         Optional<User> user = authenticatedEmployee(authorization);
         if (user.isEmpty()) return unauthorized();
 
-        List<HrNotification> visible = visibleNotifications();
+        List<HrNotification> visible = visibleNotifications(user.get());
         if (visible.isEmpty()) return ResponseEntity.ok(Map.of("message", "No notifications to mark as read."));
         Set<Long> visibleIds = new HashSet<>(visible.stream().map(com.knowledgegap.backend.model.HrNotification::getId).toList());
         Set<Long> readIds = new HashSet<>(employeeNotificationReadRepository
@@ -372,7 +404,7 @@ public ResponseEntity<?> chat(
     }
 
     private Map<String, Object> employeeNotifications(User user) {
-        List<String> notifications = visibleNotifications().stream()
+        List<String> notifications = visibleNotifications(user).stream()
                 .filter(notification -> notification.getAudience() == null
                         || notification.getAudience().isBlank()
                         || notification.getAudience().toLowerCase().contains("all")
@@ -387,17 +419,19 @@ public ResponseEntity<?> chat(
                 "items", notifications);
     }
 
-    private List<HrNotification> visibleNotifications() {
+    private List<HrNotification> visibleNotifications(User user) {
         return hrNotificationRepository.findAllByOrderBySentAtDesc().stream()
                 .filter(notification -> notification.getAudience() == null
                         || notification.getAudience().isBlank()
                         || notification.getAudience().toLowerCase().contains("all")
                         || notification.getAudience().toLowerCase().contains("employee"))
+                .filter(notification -> notification.getRecipientEmail() == null
+                        || notification.getRecipientEmail().equalsIgnoreCase(user.getEmail()))
                 .toList();
     }
 
     private List<HrNotification> unreadNotifications(User user) {
-        List<HrNotification> visible = visibleNotifications();
+        List<HrNotification> visible = visibleNotifications(user);
         if (visible.isEmpty()) return List.of();
         Set<Long> ids = new HashSet<>(visible.stream().map(HrNotification::getId).toList());
         Set<Long> readIds = new HashSet<>(employeeNotificationReadRepository

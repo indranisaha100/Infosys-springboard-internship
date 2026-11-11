@@ -7,9 +7,11 @@ import com.knowledgegap.backend.repository.EmployeeNotificationReadRepository;
 import com.knowledgegap.backend.repository.TrainingProgrammeRepository;
 import com.knowledgegap.backend.repository.LearningResourceRepository;
 import com.knowledgegap.backend.repository.FeedbackRepository;
+import com.knowledgegap.backend.repository.MentorshipRequestRepository;
 import com.knowledgegap.backend.model.HrNotification;
 import com.knowledgegap.backend.model.EmployeeNotificationRead;
 import com.knowledgegap.backend.model.AssessmentScore;
+import com.knowledgegap.backend.model.MentorshipRequest;
 import com.knowledgegap.backend.security.JwtTokenProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,10 +45,11 @@ public class MentorController {
         private final TrainingProgrammeRepository programmeRepository;
         private final LearningResourceRepository resourceRepository;
         private final FeedbackRepository feedbackRepository;
+        private final MentorshipRequestRepository mentorshipRequestRepository;
 
         public MentorController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
                         AssessmentScoreRepository assessmentScoreRepository) {
-                this(userRepository, jwtTokenProvider, assessmentScoreRepository, null, null, null, null, null);
+                this(userRepository, jwtTokenProvider, assessmentScoreRepository, null, null, null, null, null, null);
         }
 
         @Autowired
@@ -56,7 +59,8 @@ public class MentorController {
                         EmployeeNotificationReadRepository notificationReadRepository,
                         TrainingProgrammeRepository programmeRepository,
                         LearningResourceRepository resourceRepository,
-                        FeedbackRepository feedbackRepository) {
+                        FeedbackRepository feedbackRepository,
+                        MentorshipRequestRepository mentorshipRequestRepository) {
                 this.userRepository = userRepository;
                 this.jwtTokenProvider = jwtTokenProvider;
                 this.assessmentScoreRepository = assessmentScoreRepository;
@@ -65,6 +69,18 @@ public class MentorController {
                 this.programmeRepository = programmeRepository;
                 this.resourceRepository = resourceRepository;
                 this.feedbackRepository = feedbackRepository;
+                this.mentorshipRequestRepository = mentorshipRequestRepository;
+        }
+
+        public MentorController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
+                        AssessmentScoreRepository assessmentScoreRepository,
+                        HrNotificationRepository notificationRepository,
+                        EmployeeNotificationReadRepository notificationReadRepository,
+                        TrainingProgrammeRepository programmeRepository,
+                        LearningResourceRepository resourceRepository,
+                        FeedbackRepository feedbackRepository) {
+                this(userRepository, jwtTokenProvider, assessmentScoreRepository, notificationRepository,
+                        notificationReadRepository, programmeRepository, resourceRepository, feedbackRepository, null);
         }
 
         @GetMapping("/dashboard")
@@ -152,6 +168,7 @@ public class MentorController {
                         case "sessions" -> ResponseEntity.ok(Map.of("section", "Mentoring Sessions",
                                         "message", "No mentoring sessions have been scheduled yet.", "employees",
                                         employees));
+                        case "requests" -> ResponseEntity.ok(mentorRequests(mentor.get()));
                         case "notifications" -> ResponseEntity.ok(mentorNotifications(mentor.get()));
                         case "reports" -> ResponseEntity.ok(Map.of("section", "Reports", "message",
                                         "Reports are generated from live employee assessment data.", "employees",
@@ -180,7 +197,7 @@ public class MentorController {
                 if (mentor.isEmpty()) {
                         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
                 }
-                List<HrNotification> visible = visibleNotifications();
+                List<HrNotification> visible = visibleNotifications(mentor.get());
                 Set<Long> ids = new HashSet<>(visible.stream().map(HrNotification::getId).toList());
                 Set<Long> readIds = new HashSet<>(notificationReadRepository
                                 .findByEmployeeEmailAndNotificationIdIn(mentor.get().getEmail(), ids).stream()
@@ -193,7 +210,7 @@ public class MentorController {
         }
 
         private Map<String, Object> mentorNotifications(com.knowledgegap.backend.model.User mentor) {
-                List<String> items = visibleNotifications().stream()
+                List<String> items = visibleNotifications(mentor).stream()
                                 .map(notification -> notification.getTitle() + " — " + notification.getMessage())
                                 .toList();
                 return Map.of("section", "Notifications",
@@ -265,24 +282,36 @@ public class MentorController {
                                 "items", items);
         }
 
-        private List<HrNotification> visibleNotifications() {
+        private List<HrNotification> visibleNotifications(com.knowledgegap.backend.model.User mentor) {
                 if (notificationRepository == null) return List.of();
                 return notificationRepository.findAllByOrderBySentAtDesc().stream()
                                 .filter(notification -> notification.getAudience() == null
                                                 || notification.getAudience().isBlank()
                                                 || notification.getAudience().toLowerCase().contains("all")
                                                 || notification.getAudience().toLowerCase().contains("mentor"))
+                                .filter(notification -> notification.getRecipientEmail() == null
+                                                || notification.getRecipientEmail().equalsIgnoreCase(mentor.getEmail()))
                                 .toList();
         }
 
         private List<HrNotification> unreadNotifications(com.knowledgegap.backend.model.User mentor) {
-                if (notificationReadRepository == null) return visibleNotifications();
-                List<HrNotification> visible = visibleNotifications();
+                if (notificationReadRepository == null) return visibleNotifications(mentor);
+                List<HrNotification> visible = visibleNotifications(mentor);
                 Set<Long> ids = new HashSet<>(visible.stream().map(HrNotification::getId).toList());
                 Set<Long> readIds = new HashSet<>(notificationReadRepository
                                 .findByEmployeeEmailAndNotificationIdIn(mentor.getEmail(), ids).stream()
                                 .map(EmployeeNotificationRead::getNotificationId).toList());
                 return visible.stream().filter(notification -> !readIds.contains(notification.getId())).toList();
+        }
+
+        private Map<String, Object> mentorRequests(com.knowledgegap.backend.model.User mentor) {
+                List<MentorshipRequest> requests = mentorshipRequestRepository == null ? List.of()
+                                : mentorshipRequestRepository.findByMentorEmailIgnoreCaseOrderByCreatedAtDesc(
+                                                mentor.getEmail());
+                return Map.of("section", "Mentorship Requests", "message",
+                                requests.isEmpty() ? "No mentorship requests are assigned to you."
+                                                : "Review employee mentorship requests assigned to you.",
+                                "requests", requests);
         }
 
         private List<Map<String, Object>> assessmentSummaries() {

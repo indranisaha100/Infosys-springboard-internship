@@ -44,7 +44,9 @@ public class HrController {
             return unauthorized();
         }
 
-        List<User> employees = userRepository.findByRole("ROLE_EMPLOYEE");
+        List<User> employees = userRepository.findByRole("ROLE_EMPLOYEE").stream()
+                .filter(user -> user.getStatus() == null || "APPROVED".equalsIgnoreCase(user.getStatus()))
+                .toList();
         List<AssessmentScore> scores = assessmentScoreRepository.findAll();
         List<Map<String, Object>> employeeSummaries = employees.stream()
                 .sorted(Comparator.comparing(this::displayName))
@@ -52,7 +54,8 @@ public class HrController {
                 .toList();
         List<Map<String, Object>> gaps = skillGaps(scores);
         long departments = employees.stream()
-                .map(user -> "Unassigned")
+                .map(user -> user.getDepartment() == null || user.getDepartment().isBlank()
+                        ? "Unassigned" : user.getDepartment().trim())
                 .distinct()
                 .count();
 
@@ -82,6 +85,7 @@ public class HrController {
 
         String query = search.trim().toLowerCase(Locale.ROOT);
         List<Map<String, Object>> result = userRepository.findByRole("ROLE_EMPLOYEE").stream()
+                .filter(user -> user.getStatus() == null || "APPROVED".equalsIgnoreCase(user.getStatus()))
                 .filter(user -> query.isBlank() || displayName(user).toLowerCase(Locale.ROOT).contains(query)
                         || user.getEmail().toLowerCase(Locale.ROOT).contains(query))
                 .sorted(Comparator.comparing(this::displayName))
@@ -124,9 +128,11 @@ public class HrController {
                 "id", user.getId(),
                 "name", displayName(user),
                 "email", user.getEmail(),
-                "department", "Unassigned",
-                "role", "Employee",
-                "status", "Assessment data available");
+                "department", user.getDepartment() == null || user.getDepartment().isBlank()
+                        ? "Unassigned" : user.getDepartment(),
+                "role", user.getRequestedRole() == null ? "Employee"
+                        : user.getRequestedRole().replace("ROLE_", "").replace('_', ' '),
+                "status", user.getStatus() == null ? "APPROVED" : user.getStatus());
     }
 
     private Map<String, Object> stat(String label, Object value, String note) {

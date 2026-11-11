@@ -273,7 +273,6 @@ export default function ManagerDashboard() {
 
         <ManagerTopbar
           manager={manager}
-          activeSection={activeSection}
         />
 
         <section className="manager-content">
@@ -340,115 +339,6 @@ export default function ManagerDashboard() {
                   note="Latest scores below 40%"
                   color="green"
                 />
-
-              </div>
-
-              <SectionHeading
-                title="Assessment Performance"
-                subtitle="Latest employee assessment performance"
-              />
-
-              <div className="manager-overview-grid">
-
-                <section className="manager-panel">
-                  <div className="manager-panel-heading">
-                    <div>
-                      <h2>Average Assessment Score</h2>
-                      <p>Across latest employee skill assessments</p>
-                    </div>
-                  </div>
-
-                  <div className="score-visual">
-                    <div className="score-circle">
-                      <strong>
-                        {summary.averageScore ?? 0}%
-                      </strong>
-                      <small>Average</small>
-                    </div>
-                  </div>
-
-                  <div className="score-details">
-                    <div>
-                      <span>Assessed employees</span>
-                      <strong>{summary.assessedEmployees ?? 0}</strong>
-                    </div>
-
-                    <div>
-                      <span>Total assessments</span>
-                      <strong>{summary.totalAssessments ?? 0}</strong>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="manager-panel">
-                  <div className="manager-panel-heading">
-                    <div>
-                      <h2>Skill Coverage</h2>
-                      <p>Average score by competency</p>
-                    </div>
-                  </div>
-
-                  {coverage.length ? coverage.slice(0, 6).map((skill) => (
-                    <div className="coverage-row" key={skill.name}>
-                      <div className="coverage-label">
-                        <strong>{skill.name}</strong>
-                        <span>{skill.averageScore}%</span>
-                      </div>
-
-                      <div className="coverage-track">
-                        <div
-                          className="coverage-fill"
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              Math.max(0, skill.averageScore)
-                            )}%`,
-                          }}
-                        />
-                      </div>
-
-                      <small>
-                        {skill.affectedEmployees} employees with gaps
-                      </small>
-                    </div>
-                  )) : (
-                    <EmptyState message="No skill assessments available." />
-                  )}
-                </section>
-
-              </div>
-
-              <SectionHeading
-                title="Critical Gap Alerts"
-                subtitle="Employees requiring immediate attention"
-              />
-
-              <CriticalAlerts alerts={alerts} />
-
-              <SectionHeading
-                title="Quick Access"
-                subtitle="Explore your employees and mentors"
-              />
-
-              <div className="manager-quick-grid">
-
-                <button onClick={() => setActiveSection("employees")}>
-                  <span>👥</span>
-                  <strong>View Employees</strong>
-                  <small>{employees.length} employee accounts</small>
-                </button>
-
-                <button onClick={() => setActiveSection("mentors")}>
-                  <span>🎓</span>
-                  <strong>View Mentors</strong>
-                  <small>{mentors.length} mentor accounts</small>
-                </button>
-
-                <button onClick={() => setActiveSection("heatmap")}>
-                  <span>📊</span>
-                  <strong>Skill Heatmap</strong>
-                  <small>Visual skill comparison</small>
-                </button>
 
               </div>
 
@@ -845,32 +735,6 @@ export default function ManagerDashboard() {
                   </tbody>
 
                 </table>
-              </div>
-
-            </section>
-          )}
-
-          {/* TRAINING */}
-
-          {activeSection === "training" && (
-            <section className="manager-panel">
-
-              <h2>📚 Learning Progress</h2>
-
-              <div className="coming-soon">
-                <span>🎓</span>
-                <h3>Training Management</h3>
-
-                <p>
-                  Training enrollment, course completion,
-                  learning milestones and overdue training
-                  cannot be retrieved until training records
-                  are connected to the backend.
-                </p>
-
-                <span className="status-badge pending">
-                  Database integration pending
-                </span>
               </div>
 
             </section>

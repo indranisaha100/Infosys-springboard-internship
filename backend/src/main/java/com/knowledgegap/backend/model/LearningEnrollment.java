@@ -21,6 +21,8 @@ public class LearningEnrollment {
     @Column(nullable = false)
     private String learningTitle;
 
+    private String mentorEmail;
+
     @Column(nullable = false)
     private String status = "PENDING";
 

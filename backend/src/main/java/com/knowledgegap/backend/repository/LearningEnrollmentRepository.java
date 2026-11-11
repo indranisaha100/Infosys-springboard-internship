@@ -6,4 +6,9 @@ import java.util.List;
 
 public interface LearningEnrollmentRepository extends JpaRepository<LearningEnrollment, Long> {
     List<LearningEnrollment> findAllByOrderByUpdatedAtDesc();
+
+    List<LearningEnrollment> findByEmployeeEmailIgnoreCaseOrderByUpdatedAtDesc(String employeeEmail);
+
+    java.util.Optional<LearningEnrollment> findFirstByEmployeeEmailIgnoreCaseAndLearningTitleIgnoreCase(
+            String employeeEmail, String learningTitle);
 }
