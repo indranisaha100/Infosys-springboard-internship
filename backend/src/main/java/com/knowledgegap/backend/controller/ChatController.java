@@ -386,6 +386,10 @@ public class ChatController {
             return connections.findBetween(a.getEmail(), b.getEmail())
                     .map(c -> "ACCEPTED".equals(c.getStatus())).orElse(false);
         }
+        boolean aMgr = "ROLE_MANAGER".equals(a.getRole()), bMgr = "ROLE_MANAGER".equals(b.getRole());
+        // Manager <-> employee: only for the manager's assigned team
+        if (aMgr && bEmp) return a.getEmail().equalsIgnoreCase(b.getManagerEmail());
+        if (aEmp && bMgr) return b.getEmail().equalsIgnoreCase(a.getManagerEmail());
         if (aEmp && bMen) return mentored(a.getEmail(), b.getEmail());
         if (aMen && bEmp) return mentored(b.getEmail(), a.getEmail());
         return false;
@@ -415,7 +419,8 @@ public class ChatController {
 
     private Map<String, Object> person(User u) {
         return Map.of("name", currentUser.displayName(u), "email", u.getEmail(),
-                "role", "ROLE_MENTOR".equals(u.getRole()) ? "Mentor" : "Employee");
+                "role", "ROLE_MENTOR".equals(u.getRole()) ? "Mentor"
+                        : "ROLE_MANAGER".equals(u.getRole()) ? "Manager" : "Employee");
     }
 
     private ResponseEntity<Map<String, String>> unauthorized() {

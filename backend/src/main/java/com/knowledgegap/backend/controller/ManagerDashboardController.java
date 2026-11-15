@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/manager")
@@ -66,5 +67,37 @@ public class ManagerDashboardController {
                 managerDashboardService.getDashboardData(manager);
 
         return ResponseEntity.ok(dashboard);
+    }
+
+    // HR / Admin: assign an employee to a manager's team
+    @PutMapping("/assign")
+    public ResponseEntity<?> assignEmployee(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody Map<String, String> body) {
+
+        if (authorization == null || !authorization.startsWith("Bearer ")
+                || !jwtTokenProvider.validateToken(authorization.substring(7))) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Please log in first."));
+        }
+        User caller = userRepository
+                .findByEmail(jwtTokenProvider.getEmailFromJWT(authorization.substring(7))).orElse(null);
+        if (caller == null
+                || !("ROLE_HR".equals(caller.getRole()) || "ROLE_ADMIN".equals(caller.getRole()))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "HR access required."));
+        }
+        Optional<User> employee = userRepository.findByEmail(
+                body.getOrDefault("employeeEmail", "").trim().toLowerCase());
+        Optional<User> mgr = userRepository.findByEmail(
+                body.getOrDefault("managerEmail", "").trim().toLowerCase());
+        if (employee.isEmpty() || !"ROLE_EMPLOYEE".equals(employee.get().getRole())
+                || mgr.isEmpty() || !"ROLE_MANAGER".equals(mgr.get().getRole())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Provide a valid employeeEmail and managerEmail."));
+        }
+        employee.get().setManagerEmail(mgr.get().getEmail());
+        userRepository.save(employee.get());
+        return ResponseEntity.ok(Map.of("message", "Employee assigned to manager."));
     }
 }

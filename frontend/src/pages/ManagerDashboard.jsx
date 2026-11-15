@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -6,6 +5,7 @@ import { getManagerDashboard } from "../services/managerApi";
 
 import ManagerSidebar from "../components/manager/ManagerSidebar";
 import ManagerTopbar from "../components/manager/ManagerTopbar";
+import MessagesPanel from "./MessagesPanel";
 
 import "./ManagerDashboard.css";
 
@@ -28,7 +28,7 @@ function MetricCard({ icon, label, value, note, color }) {
 function EmptyState({ message }) {
   return (
     <div className="manager-empty">
-      <div>📂</div>
+      <div>ðŸ“‚</div>
       <p>{message}</p>
     </div>
   );
@@ -220,7 +220,7 @@ export default function ManagerDashboard() {
   }
 
   function formatDate(date) {
-    if (!date) return "—";
+    if (!date) return "â€”";
 
     return new Date(date).toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -298,7 +298,7 @@ export default function ManagerDashboard() {
                 </div>
 
                 <div className="welcome-icon">
-                  👨‍💼
+                  ðŸ‘¨â€ðŸ’¼
                 </div>
               </div>
 
@@ -310,7 +310,7 @@ export default function ManagerDashboard() {
               <div className="manager-stats">
 
                 <MetricCard
-                  icon="👥"
+                  icon="ðŸ‘¥"
                   label="Total Employees"
                   value={summary.totalEmployees}
                   note="Registered employee accounts"
@@ -318,7 +318,7 @@ export default function ManagerDashboard() {
                 />
 
                 <MetricCard
-                  icon="🎓"
+                  icon="ðŸŽ“"
                   label="Total Mentors"
                   value={summary.totalMentors}
                   note="Registered mentor accounts"
@@ -326,7 +326,7 @@ export default function ManagerDashboard() {
                 />
 
                 <MetricCard
-                  icon="⚠️"
+                  icon="âš ï¸"
                   label="Employees with Skill Gaps"
                   value={summary.employeesWithGaps}
                   note="Latest scores below 70%"
@@ -334,7 +334,7 @@ export default function ManagerDashboard() {
                 />
 
                 <MetricCard
-                  icon="🚨"
+                  icon="ðŸš¨"
                   label="Critical Skill Gaps"
                   value={summary.criticalGaps}
                   note="Latest scores below 40%"
@@ -462,7 +462,7 @@ export default function ManagerDashboard() {
 
               <div className="manager-panel-heading">
                 <div>
-                  <h2>👥 Employee Directory</h2>
+                  <h2>ðŸ‘¥ Employee Directory</h2>
                   <p>
                     {filteredEmployees.length} registered employees
                   </p>
@@ -483,7 +483,7 @@ export default function ManagerDashboard() {
                     className="back-button"
                     onClick={() => setSelectedEmployee(null)}
                   >
-                    ← Back to Employees
+                    â† Back to Employees
                   </button>
 
                   <div className="detail-profile">
@@ -616,7 +616,7 @@ export default function ManagerDashboard() {
 
               <div className="manager-panel-heading">
                 <div>
-                  <h2>🎓 Mentor Directory</h2>
+                  <h2>ðŸŽ“ Mentor Directory</h2>
                   <p>
                     {filteredMentors.length} registered mentors
                   </p>
@@ -674,7 +674,7 @@ export default function ManagerDashboard() {
           {activeSection === "coverage" && (
             <>
               <SectionHeading
-                title="📊 Team Skill Gap Analysis"
+                title="ðŸ“Š Team Skill Gap Analysis"
                 subtitle="Assessment-based skill coverage from PostgreSQL"
               />
 
@@ -721,16 +721,16 @@ export default function ManagerDashboard() {
           {activeSection === "heatmap" && (
             <>
               <SectionHeading
-                title="🔥 Team Skill Gap Heatmap"
+                title="ðŸ”¥ Team Skill Gap Heatmap"
                 subtitle="Employee-wise latest assessment scores"
               />
 
               <section className="manager-panel">
 
                 <div className="heatmap-legend">
-                  <span><i className="heat-critical" /> Critical: 0–39%</span>
-                  <span><i className="heat-warning" /> Improve: 40–69%</span>
-                  <span><i className="heat-good" /> Good: 70–100%</span>
+                  <span><i className="heat-critical" /> Critical: 0â€“39%</span>
+                  <span><i className="heat-warning" /> Improve: 40â€“69%</span>
+                  <span><i className="heat-good" /> Good: 70â€“100%</span>
                   <span><i className="heat-none" /> Not assessed</span>
                 </div>
 
@@ -767,7 +767,7 @@ export default function ManagerDashboard() {
                                       score < 0 ? "Not assessed" : score + "%"
                                     }`}
                                   >
-                                    {score < 0 ? "—" : `${score}%`}
+                                    {score < 0 ? "â€”" : `${score}%`}
                                   </span>
                                 </td>
                               );
@@ -793,7 +793,7 @@ export default function ManagerDashboard() {
 
               <div className="manager-panel-heading">
                 <div>
-                  <h2>📋 Employee Assessments</h2>
+                  <h2>ðŸ“‹ Employee Assessments</h2>
                   <p>
                     {filteredAssessments.length} assessment records
                   </p>
@@ -883,7 +883,7 @@ export default function ManagerDashboard() {
 
               <div className="manager-panel-heading">
                 <div>
-                  <h2>🚨 Critical Skill Gap Alerts</h2>
+                  <h2>ðŸš¨ Critical Skill Gap Alerts</h2>
                   <p>Latest assessment scores below 40%</p>
                 </div>
 
@@ -899,12 +899,20 @@ export default function ManagerDashboard() {
 
           {/* REPORTS */}
 
+          {/* MESSAGES / TEAM CHAT */}
+
+          {activeSection === "messages" && (
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+              <MessagesPanel />
+            </div>
+          )}
+
           {activeSection === "reports" && (
             <section className="manager-panel">
 
               <div className="manager-panel-heading">
                 <div>
-                  <h2>📑 Team Assessment Reports</h2>
+                  <h2>ðŸ“‘ Team Assessment Reports</h2>
                   <p>Employee competency and assessment summary</p>
                 </div>
 
@@ -912,7 +920,7 @@ export default function ManagerDashboard() {
                   className="export-button"
                   onClick={exportReport}
                 >
-                  ↓ Export CSV
+                  â†“ Export CSV
                 </button>
               </div>
 
@@ -980,7 +988,7 @@ export default function ManagerDashboard() {
           )}
 
           <footer className="manager-footer">
-            KGIP · Knowledge Gap Intelligence Platform
+            KGIP Â· Knowledge Gap Intelligence Platform
           </footer>
 
         </section>

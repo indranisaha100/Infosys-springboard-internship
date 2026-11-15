@@ -1,4 +1,3 @@
-
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: "▦" },
   { id: "employees", label: "My Employees", icon: "♙" },
@@ -8,6 +7,7 @@ const menuItems = [
   { id: "assessments", label: "Assessments", icon: "✓" },
   { id: "training", label: "Training Progress", icon: "◈" },
   { id: "alerts", label: "Critical Alerts", icon: "⚑" },
+  { id: "messages", label: "Messages / Team Chat", icon: "✉" },
   { id: "reports", label: "Team Reports", icon: "▤" },
 ];
 

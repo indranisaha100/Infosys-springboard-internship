@@ -1,6 +1,4 @@
-
 package com.knowledgegap.backend.service;
-
 import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.model.AssessmentScore;
 import com.knowledgegap.backend.repository.UserRepository;
@@ -31,8 +29,12 @@ public class ManagerDashboardService {
 
         List<User> users = userRepository.findAll();
 
+        // Managers see only their assigned team; HR / Department Head / Admin see everyone
+        boolean teamOnly = "ROLE_MANAGER".equals(manager.getRole());
+
         List<User> employees = users.stream()
                 .filter(u -> "ROLE_EMPLOYEE".equals(u.getRole()))
+                .filter(u -> !teamOnly || manager.getEmail().equalsIgnoreCase(u.getManagerEmail()))
                 .sorted(Comparator.comparing(
                         u -> safe(u.getFirstName()) + safe(u.getLastName()),
                         String.CASE_INSENSITIVE_ORDER))
@@ -45,8 +47,14 @@ public class ManagerDashboardService {
                         String.CASE_INSENSITIVE_ORDER))
                 .toList();
 
+        Set<String> teamEmails = employees.stream()
+                .map(u -> normalize(u.getEmail()))
+                .collect(Collectors.toSet());
+
         List<AssessmentScore> scores =
-                assessmentScoreRepository.findAllByOrderBySubmittedAtDesc();
+                assessmentScoreRepository.findAllByOrderBySubmittedAtDesc().stream()
+                        .filter(s -> !teamOnly || teamEmails.contains(normalize(s.getEmployeeEmail())))
+                        .toList();
 
         Map<String, List<AssessmentScore>> scoresByEmployee =
                 scores.stream().collect(Collectors.groupingBy(

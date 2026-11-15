@@ -225,7 +225,9 @@ export default function MessagesPanel() {
 
   const tabs = isEmployee
     ? [["chats", "Chats"], ["new", "Start chat"], ["network", "Network"]]
-    : [["chats", "Chats"], ["new", "Start chat"], ["requests", `Requests${incoming.length ? ` (${incoming.length})` : ""}`]];
+    : role === "ROLE_MENTOR"
+      ? [["chats", "Chats"], ["new", "Start chat"], ["requests", `Requests${incoming.length ? ` (${incoming.length})` : ""}`]]
+      : [["chats", "Chats"], ["new", "My team"]];
     const tabStyle = (name) => ({
     flex: 1, border: 0, padding: "10px 8px", fontSize: "11px", fontWeight: 600, cursor: "pointer",
     background: tab === name ? "#dbeafe" : "#ffffff", color: tab === name ? "#1d4ed8" : "#475569",
@@ -276,7 +278,7 @@ style={tabStyle(name)} onClick={() => setTab(name)}>{label}</button>)}
           </>}
 
           {tab === "new" && <>
-            {contacts.length === 0 && <p className={empty}>{isEmployee ? "No contacts yet. Connect with colleagues or request a mentor in Network." : "No accepted mentees yet."}</p>}
+            {contacts.length === 0 && <p className={empty}>{isEmployee ? "No contacts yet. Connect with colleagues or request a mentor in Network." : role === "ROLE_MANAGER" ? "No team members assigned to you yet." : "No accepted mentees yet."}</p>}
             {contacts.map((c) => (
               <button key={c.email} onClick={() => openWith(c)} className="block w-full border-0 bg-white px-4 py-3 text-left hover:bg-slate-50">
                 <strong className="block text-xs text-blue-950">{c.name}</strong>
@@ -368,7 +370,7 @@ style={tabStyle(name)} onClick={() => setTab(name)}>{label}</button>)}
                       </button>
                     )}
                   </div>
-                  <small className="text-[9px] text-slate-400">{time(m.sentAt)}{m.mine ? (m.read ? " · Seen" : " · Sent") : ""}</small>
+                  <small className="text-[9px] text-slate-400">{time(m.sentAt)}{m.mine ? (m.read ? " 路 Seen" : " 路 Sent") : ""}</small>
                 </div>
               ))}
               <div ref={endRef} />

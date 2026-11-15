@@ -31,6 +31,9 @@ public class User {
 
     private String status = "APPROVED";
 
+    // Assigned manager (team link): set on employees
+    private String managerEmail;
+
     @Column(length = 1000)
     private String reviewNote;
 }
