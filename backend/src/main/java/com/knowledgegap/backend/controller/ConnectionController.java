@@ -5,6 +5,7 @@ import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.repository.ConnectionRepository;
 import com.knowledgegap.backend.repository.UserRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
+import com.knowledgegap.backend.service.ChatPushService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,13 +21,15 @@ public class ConnectionController {
     private final JwtTokenProvider jwtTokenProvider;
     private final ConnectionRepository connectionRepository;
   //  private final NotificationService notifications;
+    private final ChatPushService push;
 
     public ConnectionController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
-            ConnectionRepository connectionRepository) {
+            ConnectionRepository connectionRepository, ChatPushService push) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.connectionRepository = connectionRepository;
         //this.notifications=notifications;
+        this.push = push;
     }
 
     // All other employees with my connection status: NONE, SENT, RECEIVED, CONNECTED
@@ -85,6 +88,7 @@ public class ConnectionController {
         connection.setStatus("PENDING");
         connection.setCreatedAt(Instant.now());
         connectionRepository.save(connection);
+        push.refresh(target.get().getEmail());
         //notifications.notifyUser(target.get().getEmail(), "CONNECTION_REQUEST",
         //"New connection request", displayName(me.get()) + " wants to connect with you.");
         return ResponseEntity.ok(Map.of("message", "Request sent."));
@@ -103,6 +107,7 @@ public class ConnectionController {
         }
         connection.get().setStatus("ACCEPTED");
         connectionRepository.save(connection.get());
+        push.refresh(connection.get().getRequesterEmail());
         //notifications.notifyUser(connection.get().getRequesterEmail(), "CONNECTION_ACCEPTED",
         //"Connection accepted", displayName(me.get()) + " accepted your request. You can chat now.");
         return ResponseEntity.ok(Map.of("message", "Request accepted."));
@@ -123,6 +128,8 @@ public class ConnectionController {
             return notFound();
         }
         connectionRepository.delete(connection.get());
+        push.refresh(connection.get().getRequesterEmail());
+        push.refresh(connection.get().getReceiverEmail());
         return ResponseEntity.ok(Map.of("message", "Request removed."));
     }
 

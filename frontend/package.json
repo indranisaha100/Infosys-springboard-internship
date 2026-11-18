@@ -9,13 +9,14 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.5.0",
+    "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",
-    "@tailwindcss/vite": "latest",
-    "tailwindcss": "latest"
+    "tailwindcss": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
     "@eslint/js": "latest",

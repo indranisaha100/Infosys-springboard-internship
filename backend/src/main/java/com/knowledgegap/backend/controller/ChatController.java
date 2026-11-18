@@ -3,6 +3,7 @@ package com.knowledgegap.backend.controller;
 import com.knowledgegap.backend.model.*;
 import com.knowledgegap.backend.repository.*;
 import com.knowledgegap.backend.security.CurrentUser;
+import com.knowledgegap.backend.service.ChatPushService;
 //import com.knowledgegap.backend.service.NotificationService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ContentDisposition;
@@ -34,11 +35,13 @@ public class ChatController {
     private final ConnectionRepository connections;
     private final MentorshipRequestRepository mentorship;
     //private final NotificationService notifications;
+    private final ChatPushService push;
 
     public ChatController(CurrentUser currentUser, UserRepository users, ConversationRepository conversations,
             ConversationParticipantRepository participants, MessageRepository messages,
             MessageAttachmentRepository attachments, ConversationReportRepository reports,
-            ConnectionRepository connections, MentorshipRequestRepository mentorship) {
+            ConnectionRepository connections, MentorshipRequestRepository mentorship,
+            ChatPushService push) {
         this.currentUser = currentUser;
         this.users = users;
         this.conversations = conversations;
@@ -49,6 +52,7 @@ public class ChatController {
         this.connections = connections;
         this.mentorship = mentorship;
         //this.notifications = notifications;
+        this.push = push;
     }
 
     @GetMapping("/contacts")
@@ -185,6 +189,7 @@ public class ChatController {
         mine.get().setLastReadAt(message.getSentAt());
         participants.save(mine.get());
         afterSend(id, me.get(), peer.get(), text.length() > 80 ? text.substring(0, 80) + "..." : text);
+        push.newMessage(id, peer.get().getEmail());
         return ResponseEntity.ok(Map.of("id", message.getId()));
     }
 
@@ -223,6 +228,7 @@ public class ChatController {
         mine.get().setLastReadAt(message.getSentAt());
         participants.save(mine.get());
         afterSend(id, me.get(), peer.get(), text.isEmpty() ? "Sent an attachment: " + name : text);
+        push.newMessage(id, peer.get().getEmail());
         return ResponseEntity.ok(Map.of("id", message.getId()));
     }
 
@@ -260,6 +266,7 @@ public class ChatController {
         if (mine.isEmpty()) return forbidden();
         mine.get().setLastReadAt(Instant.now());
         participants.save(mine.get());
+        peerOf(id, me.get().getEmail()).ifPresent(peer -> push.conversationRead(id, peer.getEmail()));
         return ResponseEntity.ok(Map.of("message", "Read."));
     }
 

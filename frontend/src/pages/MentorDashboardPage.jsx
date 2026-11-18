@@ -14,7 +14,6 @@ const navigation = [
   ["book", "Learning Progress"],
   ["calendar", "Mentorship Management"],
   ["users", "Mentorship Requests"],
-  ["profile", "Mentor Profile"],
   ["report", "Messages / Chatbox"],
 ];
 

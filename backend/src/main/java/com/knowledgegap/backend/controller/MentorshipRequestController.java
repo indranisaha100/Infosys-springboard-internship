@@ -5,6 +5,7 @@ import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.repository.MentorshipRequestRepository;
 import com.knowledgegap.backend.repository.UserRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
+import com.knowledgegap.backend.service.ChatPushService;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,12 +19,14 @@ public class MentorshipRequestController {
     private final MentorshipRequestRepository requests;
     private final UserRepository users;
     private final JwtTokenProvider tokens;
+    private final ChatPushService push;
 
     public MentorshipRequestController(MentorshipRequestRepository requests, UserRepository users,
-            JwtTokenProvider tokens) {
+            JwtTokenProvider tokens, ChatPushService push) {
         this.requests = requests;
         this.users = users;
         this.tokens = tokens;
+        this.push = push;
     }
 
     @GetMapping
@@ -50,7 +53,9 @@ public class MentorshipRequestController {
         input.setEmployeeEmail(employee.get().getEmail());
         input.setStatus("PENDING");
         input.setCreatedAt(Instant.now());
-        return ResponseEntity.status(HttpStatus.CREATED).body(requests.save(input));
+        MentorshipRequest created = requests.save(input);
+        push.refresh(created.getMentorEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PatchMapping("/{id}")
@@ -65,7 +70,9 @@ public class MentorshipRequestController {
                         return ResponseEntity.badRequest().body(Map.of("message", "Status must be ACCEPTED or DECLINED."));
                     }
                     request.setStatus(status);
-                    return ResponseEntity.ok(requests.save(request));
+                    MentorshipRequest updated = requests.save(request);
+                    push.refresh(updated.getEmployeeEmail());
+                    return ResponseEntity.ok(updated);
                 }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 

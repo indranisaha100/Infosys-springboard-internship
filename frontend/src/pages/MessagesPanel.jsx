@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { request } from "../services/api";
+import { connectChatSocket } from "../services/chatSocket";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+// Real-time pushes do the work. Polling is only a safety net: slow while the socket is live, faster if it is down.
+const SAFETY_POLL_MS = 30000;
+const FALLBACK_LIST_POLL_MS = 5000;
+const FALLBACK_MESSAGE_POLL_MS = 3000;
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const post = (path, body) => request(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
 const merge = (prev, latest) => {
@@ -64,6 +69,7 @@ export default function MessagesPanel() {
   const [hasMore, setHasMore] = useState(false);
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
+  const [live, setLive] = useState(false);
   const endRef = useRef(null);
   const fileRef = useRef(null);
   const readUpTo = useRef(0);
@@ -87,36 +93,61 @@ export default function MessagesPanel() {
 
   useEffect(() => {
     loadLists();
-    const timer = window.setInterval(loadLists, 5000);
+    const timer = window.setInterval(loadLists, live ? SAFETY_POLL_MS : FALLBACK_LIST_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [loadLists]);
+  }, [loadLists, live]);
 
+  const activeId = active?.id ?? null;
+  const activeIdRef = useRef(null);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+
+  // Loads the newest messages of the open chat (also marks them as read). Safe to call any time.
+  const fetchLatest = useCallback(async (first = false) => {
+    if (activeId === null) return;
+    try {
+      const res = await request(`/chat/conversations/${activeId}/messages?limit=30`);
+      if (activeIdRef.current !== activeId) return; // the user switched chats while this was loading
+      if (first) setHasMore(res.hasMore);
+      setMessages((prev) => merge(prev, res.messages));
+      const last = res.messages[res.messages.length - 1];
+      if (last && !last.mine && last.id > readUpTo.current) {
+        readUpTo.current = last.id;
+        post(`/chat/conversations/${activeId}/read`).catch(() => {});
+      }
+      setError("");
+    } catch (e) {
+      if (activeIdRef.current === activeId) setError(e.message);
+    }
+  }, [activeId]);
+
+  // Opening a chat: start from an empty list, then load it.
   useEffect(() => {
-    if (!active) return undefined;
-    let alive = true;
+    if (activeId === null) return;
     readUpTo.current = 0;
     setMessages([]);
     setHasMore(false);
-    const load = async (first) => {
-      try {
-        const res = await request(`/chat/conversations/${active.id}/messages?limit=30`);
-        if (!alive) return;
-        if (first) setHasMore(res.hasMore);
-        setMessages((prev) => merge(prev, res.messages));
-        const last = res.messages[res.messages.length - 1];
-        if (last && !last.mine && last.id > readUpTo.current) {
-          readUpTo.current = last.id;
-          post(`/chat/conversations/${active.id}/read`).catch(() => {});
-        }
-        setError("");
-      } catch (e) {
-        if (alive) setError(e.message);
-      }
-    };
-    load(true);
-    const timer = window.setInterval(() => load(false), 3000);
-    return () => { alive = false; window.clearInterval(timer); };
-  }, [active]);
+    fetchLatest(true);
+  }, [activeId, fetchLatest]);
+
+  // Safety net in case a push is ever missed.
+  useEffect(() => {
+    if (activeId === null) return undefined;
+    const timer = window.setInterval(() => fetchLatest(false), live ? SAFETY_POLL_MS : FALLBACK_MESSAGE_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [activeId, fetchLatest, live]);
+
+  // Real-time: the socket always calls the newest handlers, so it never has to reconnect on re-render.
+  const handlers = useRef({});
+  useEffect(() => { handlers.current = { activeId, loadLists, fetchLatest }; });
+
+  useEffect(() => connectChatSocket({
+    onStatus: (status) => setLive(status === "connected"),
+    onEvent: (event) => {
+      const { activeId: openId, loadLists: reloadLists, fetchLatest: reloadMessages } = handlers.current;
+      if (event.type === "MESSAGE" || event.type === "REFRESH") reloadLists();
+      if (event.conversationId && event.conversationId === openId) reloadMessages(false);
+    },
+  }), []);
 
   useEffect(() => {
     if (skipScroll.current) { skipScroll.current = false; return; }
@@ -245,6 +276,9 @@ export default function MessagesPanel() {
         <div className="p-3">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts and chats..."
             aria-label="Search" style={{ padding: "8px 10px", fontSize: "12px", borderRadius: "8px" }} />
+          <p className="m-0 mt-1.5 text-[10px] text-slate-400" role="status">
+            {live ? "● Live: messages arrive instantly" : "○ Offline mode: refreshing every few seconds"}
+          </p>
         </div>
         <div className="flex border-b border-slate-100">
           {tabs.map(([name, label]) => <button key={name} 
