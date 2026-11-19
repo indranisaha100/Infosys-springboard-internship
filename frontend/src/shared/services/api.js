@@ -1,7 +1,14 @@
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-const API_BASE_URL =
-  configuredApiBaseUrl || (import.meta.env.DEV ? "http://localhost:8080/api" : "");
+const configuredApiBaseUrlWithoutTrailingSlash = configuredApiBaseUrl?.replace(/\/+$/, "");
+const apiBaseUrl =
+  configuredApiBaseUrlWithoutTrailingSlash ||
+  (import.meta.env.DEV ? "http://localhost:8080" : "");
+const API_BASE_URL = apiBaseUrl
+  ? apiBaseUrl.toLowerCase().endsWith("/api")
+    ? apiBaseUrl
+    : `${apiBaseUrl}/api`
+  : "";
 
 if (!API_BASE_URL) {
   throw new Error("Set VITE_API_BASE_URL to the deployed backend API URL.");
