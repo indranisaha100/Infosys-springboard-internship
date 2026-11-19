@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: knowledge-gap-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_REGISTRATION_KEY
+        sync: false
+      - key: HR_SETUP_KEY
+        sync: false
+      - key: APP_CORS_ALLOWED_ORIGIN_PATTERNS
+        sync: false
+      - key: APP_WS_ALLOWED_ORIGIN_PATTERNS
+        sync: false
+      - key: SPRING_JPA_SHOW_SQL
+        value: "false"

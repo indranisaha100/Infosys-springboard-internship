@@ -1,13 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import DashboardPage from "./pages/DashboardPage";
-import MentorDashboardPage from "./pages/MentorDashboardPage";
-import HRDashboardPage from "./pages/HRDashboardPage";
-import ManagerDashboardPage from "./pages/ManagerDashboard";
-import DepartmentHeadDashboard from "./pages/DepartmentHeadDashboard";
-import InitialHrSetupPage from "./pages/InitialHrSetupPage";
+import LoginPage from "./features/auth/pages/LoginPage";
+import RegisterPage from "./features/auth/pages/RegisterPage";
+import DashboardPage from "./features/employee/pages/DashboardPage";
+import MentorDashboardPage from "./features/mentor/pages/MentorDashboardPage";
+import HRDashboardPage from "./features/hr/pages/HRDashboardPage";
+import ManagerDashboardPage from "./features/manager/pages/ManagerDashboard";
+import DepartmentHeadDashboard from "./features/department-head/pages/DepartmentHeadDashboard";
+import InitialHrSetupPage from "./features/auth/pages/InitialHrSetupPage";
 
 export default function App() {
   return (

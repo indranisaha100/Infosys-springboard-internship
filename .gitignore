@@ -1,0 +1,17 @@
+# Eclipse / Spring Tool Suite metadata
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# Local editor and operating-system files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local environment files
+.env*
+!.env.example
