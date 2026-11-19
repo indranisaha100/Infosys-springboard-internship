@@ -39,8 +39,10 @@ export async function request(path, options = {}) {
     });
   } catch (error) {
     console.error("Backend connection error:", error);
+    const cause = error instanceof Error ? error.message : String(error);
     throw new Error(
-      "Cannot connect to the backend. Check the backend service and VITE_API_BASE_URL."
+      `Network request failed for ${API_BASE_URL}${path}. Check the backend URL, CORS configuration, and browser network logs. Original error: ${cause}`,
+      { cause: error }
     );
   }
 

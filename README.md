@@ -2,31 +2,6 @@
 
 Full-stack project with a Spring Boot API in `backend/` and a Vite/React application in `frontend/`.
 
-## Frontend structure
-
-The React app uses a feature-first layout under `frontend/src/`:
-
-```text
-src/
-  App.jsx
-  main.jsx
-  styles.css
-  features/
-    auth/
-    department-head/
-    employee/
-    hr/
-    manager/
-    messaging/
-    mentor/
-    skill-assessment/
-  shared/
-    components/
-    services/
-```
-
-Role-specific pages, APIs, styles, and components live with their feature. Shared UI and API helpers live under `shared/`. The skill-assessment feature is used by the employee dashboard.
-
 ## Requirements
 
 - Java 17

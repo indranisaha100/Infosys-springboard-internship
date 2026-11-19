@@ -18,8 +18,8 @@ services:
       - key: HR_SETUP_KEY
         sync: false
       - key: APP_CORS_ALLOWED_ORIGIN_PATTERNS
-        sync: false
+        value: https://infosys-springboard-internship-l6uy.onrender.com
       - key: APP_WS_ALLOWED_ORIGIN_PATTERNS
-        sync: false
+        value: https://infosys-springboard-internship-l6uy.onrender.com
       - key: SPRING_JPA_SHOW_SQL
         value: "false"

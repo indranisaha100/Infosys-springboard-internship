@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { request } from "../../../shared/services/api";
+import { API_BASE_URL, request } from "../../../shared/services/api";
 import { connectChatSocket } from "../services/chatSocket";
 
-const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 // Real-time pushes do the work. Polling is only a safety net: slow while the socket is live, faster if it is down.
 const SAFETY_POLL_MS = 30000;
 const FALLBACK_LIST_POLL_MS = 5000;
@@ -26,7 +25,7 @@ const linkify = (text) => text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => (
 
 async function uploadForm(path, form) {
   const token = localStorage.getItem("kgipToken");
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -40,7 +39,7 @@ async function uploadForm(path, form) {
 
 async function downloadFile(att) {
   const token = localStorage.getItem("kgipToken");
-  const res = await fetch(`${API}/chat/attachments/${att.id}`, {
+  const res = await fetch(`${API_BASE_URL}/chat/attachments/${att.id}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error("Could not download the file.");
