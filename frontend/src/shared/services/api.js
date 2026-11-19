@@ -1,6 +1,12 @@
 
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+  configuredApiBaseUrl || (import.meta.env.DEV ? "http://localhost:8080/api" : "");
+
+if (!API_BASE_URL) {
+  throw new Error("Set VITE_API_BASE_URL to the deployed backend API URL.");
+}
+
 export { API_BASE_URL };
 
 export async function downloadFile(path, fallbackName = "learning-resource.pdf") {
@@ -34,7 +40,7 @@ export async function request(path, options = {}) {
   } catch (error) {
     console.error("Backend connection error:", error);
     throw new Error(
-      "Cannot connect to backend. Check that Spring Boot is running on port 8080."
+      "Cannot connect to the backend. Check the backend service and VITE_API_BASE_URL."
     );
   }
 
