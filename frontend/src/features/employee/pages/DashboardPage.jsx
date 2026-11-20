@@ -553,7 +553,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex min-h-screen bg-slate-50 font-sans text-blue-950">
-      <aside className="flex w-60 shrink-0 flex-col bg-[#172956] p-5 text-blue-50 max-[650px]:w-16 max-[650px]:px-2">
+      <aside className="workspace-sidebar flex w-60 shrink-0 flex-col bg-[#172956] p-5 text-blue-50 max-[650px]:w-16 max-[650px]:px-2">
         <div className="flex items-center gap-2 px-2 max-[650px]:justify-center max-[650px]:px-0">
           <SkillTrackLogo />
           <div className="max-[650px]:hidden"><strong className="block text-[19px] font-bold tracking-tight text-white">SkillTrack</strong><small className="block text-[10px] font-medium text-[#c9e7d6]">Employee workspace</small></div>
@@ -569,13 +569,10 @@ export default function DashboardPage() {
             </button>;
           })}
         </nav>
-        <button className="mt-4 flex items-center gap-3 rounded-lg border border-blue-200/20 px-3 py-2.5 text-left text-sm text-blue-200 hover:bg-rose-500/20 hover:text-white max-[650px]:justify-center" onClick={signOut}>
-          <span className="text-lg">↪</span><span className="max-[650px]:hidden">Log out</span>
-        </button>
       </aside>
 
       <section className="relative min-w-0 flex-1">
-        <DashboardHeader title="Employee Dashboard" name={`${firstName} ${user.lastName || ""}`} initials={initials} onProfileClick={() => selectSection("My Profile")} />
+        <DashboardHeader title="Employee Dashboard" name={`${firstName} ${user.lastName || ""}`} initials={initials} onProfileClick={() => selectSection("My Profile")} onLogout={signOut} />
         {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
         {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gap" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentors" ? <MentorsPage mentors={sectionData?.mentors || []} loading={sectionLoading} error={sectionData?.error} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>

@@ -105,23 +105,6 @@
   color: white;
 }
 
-.manager-sidebar-bottom {
-  margin-top: auto;
-  color: #9db2ce;
-  font-size: 11px;
-}
-
-.manager-sidebar-bottom button {
-  width: 100%;
-  padding: 13px;
-  background: #244363;
-  color: white;
-  border: 0;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-top: 12px;
-}
-
 /* =====================================
    TOPBAR
 ===================================== */
@@ -974,9 +957,7 @@
 
   .manager-brand div,
   .manager-nav-title,
-  .manager-nav button:not(.active),
-  .manager-sidebar-bottom p,
-  .manager-sidebar-bottom button {
+  .manager-nav button:not(.active) {
     display: none;
   }
 

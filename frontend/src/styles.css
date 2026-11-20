@@ -677,6 +677,12 @@ button, a, input, select, textarea {
   font-weight: 700;
   line-height: 1.4;
 }
+.workspace-header-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
 .workspace-header-profile {
   display: flex;
   min-width: 0;
@@ -711,10 +717,40 @@ button.workspace-header-profile {
   font-size: 12px;
   font-weight: 700;
 }
+.workspace-logout-button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--forest-900);
+  color: #fff;
+  cursor: pointer;
+  font: 700 10px/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.workspace-logout-button:hover { background: var(--forest-800); }
+.workspace-logout-button:focus-visible { outline: 2px solid var(--emerald-500); outline-offset: 2px; }
+.workspace-sidebar {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.workspace-sidebar button { font-family: inherit; }
 @media (max-width: 760px) {
-  .workspace-header { padding-inline: 16px; }
+  .workspace-header { gap: 10px; padding-inline: 16px; }
   .workspace-header h1 { font-size: 16px; }
-  .workspace-header-profile strong { max-width: 130px; font-size: 12px; }
+  .workspace-header-actions { gap: 8px; }
+  .workspace-header-profile { gap: 7px; }
+  .workspace-header-profile strong { max-width: 100px; font-size: 12px; }
+  .workspace-header-avatar { width: 36px; height: 36px; flex-basis: 36px; }
+  .workspace-logout-button { padding: 9px 10px; font-size: 9px; }
+}
+@media (max-width: 480px) {
+  .workspace-header { gap: 6px; padding-inline: 12px; }
+  .workspace-header h1 { font-size: 14px; }
+  .workspace-header-profile { gap: 5px; }
+  .workspace-header-profile strong { max-width: 64px; font-size: 11px; }
+  .workspace-header-avatar { width: 32px; height: 32px; flex-basis: 32px; }
+  .workspace-logout-button { padding: 8px; font-size: 8px; }
 }
 
 @media (max-width: 760px) {

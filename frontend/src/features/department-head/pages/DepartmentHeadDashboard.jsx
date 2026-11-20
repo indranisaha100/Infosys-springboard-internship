@@ -277,12 +277,16 @@ export default function DepartmentHeadDashboard() {
 
   return (
     <div className="dh-layout">
-      <aside className="dh-sidebar">
+      <aside className="dh-sidebar workspace-sidebar">
         <div className="dh-brand">
-          <span className="dh-brand-mark">KG</span>
+          <span className="dh-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M6 17V13M12 17V8M18 17V5" />
+            </svg>
+          </span>
 
           <div>
-            <strong>KGIP</strong>
+            <strong>SkillTrack</strong>
             <small>Department Workspace</small>
           </div>
         </div>
@@ -315,9 +319,6 @@ export default function DepartmentHeadDashboard() {
             Organizational Knowledge Gap Intelligence Platform
           </p>
 
-          <button type="button" onClick={logout}>
-            ↪ Sign out
-          </button>
         </div>
       </aside>
 
@@ -328,23 +329,28 @@ export default function DepartmentHeadDashboard() {
             <strong>{pageTitle}</strong>
           </div>
 
-          <div className="dh-user-chip">
-            <span>
-              {(
-                displayName(
-                  data?.departmentHead || sessionUser
-                ).charAt(0) || "D"
-              ).toUpperCase()}
-            </span>
+          <div className="dh-topbar-actions">
+            <div className="dh-user-chip">
+              <span>
+                {(
+                  displayName(
+                    data?.departmentHead || sessionUser
+                  ).charAt(0) || "D"
+                ).toUpperCase()}
+              </span>
 
-            <div>
-              <strong>
-                {displayName(
-                  data?.departmentHead || sessionUser
-                )}
-              </strong>
-              <small>Department Head</small>
+              <div>
+                <strong>
+                  {displayName(
+                    data?.departmentHead || sessionUser
+                  )}
+                </strong>
+                <small>Department Head</small>
+              </div>
             </div>
+            <button type="button" className="workspace-logout-button" onClick={logout}>
+              LOG OUT
+            </button>
           </div>
         </header>
 

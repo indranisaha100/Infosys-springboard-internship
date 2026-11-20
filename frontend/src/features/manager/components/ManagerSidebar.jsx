@@ -13,10 +13,9 @@ const menuItems = [
 export default function ManagerSidebar({
   activeSection,
   onSectionChange,
-  onLogout,
 }) {
   return (
-    <aside className="manager-sidebar">
+    <aside className="manager-sidebar workspace-sidebar">
 
       <div className="manager-brand">
         <span aria-hidden="true">
@@ -47,12 +46,6 @@ export default function ManagerSidebar({
           </button>
         ))}
       </nav>
-
-      <div className="manager-sidebar-bottom">
-        <button type="button" onClick={onLogout}>
-          ↪ Sign out
-        </button>
-      </div>
 
     </aside>
   );

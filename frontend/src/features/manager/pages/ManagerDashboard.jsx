@@ -266,14 +266,11 @@ export default function ManagerDashboard() {
           setSearch("");
           setSelectedEmployee(null);
         }}
-        onLogout={logout}
       />
 
       <main className="manager-main">
 
-        <ManagerTopbar
-          manager={manager}
-        />
+        <ManagerTopbar manager={manager} onLogout={logout} />
 
         <section className="manager-content">
 

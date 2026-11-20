@@ -308,11 +308,10 @@ export default function HRDashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#f4f8f5] font-sans text-[#123d30]">
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col bg-[#0b2b22] px-4 py-6 text-white max-lg:w-[76px] max-lg:px-3 max-md:hidden">
+      <aside className="workspace-sidebar fixed inset-y-0 left-0 z-20 flex w-64 flex-col bg-[#0b2b22] px-4 py-6 text-white max-lg:w-[76px] max-lg:px-3 max-md:hidden">
         <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#50C878] text-[#073d37]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 17V13M12 17V8M18 17V5" /></svg></span><span className="max-lg:hidden"><strong className="block text-lg">SkillTrack</strong><small className="text-[10px] text-[#A3E4D7]">HR workspace</small></span></div>
         <p className="mb-3 mt-9 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-[#A3E4D7] max-lg:hidden">HR workspace</p>
         <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`w-full rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><span className="max-lg:hidden">{section}</span><span className="hidden max-lg:inline" aria-hidden="true">{section.slice(0, 1)}</span></button>)}</nav>
-        <div className="mt-auto border-t border-white/15 pt-4"><p className="mb-3 px-3 text-xs text-emerald-100 max-lg:hidden">{user.firstName || user.email}</p><button onClick={signOut} className="w-full rounded-xl px-3 py-3 text-left text-xs text-emerald-50 hover:bg-white/10">Log out</button></div>
       </aside>
 
       <section className="ml-64 min-h-screen max-lg:ml-[76px] max-md:ml-0">
@@ -320,10 +319,10 @@ export default function HRDashboardPage() {
           title="HR Dashboard"
           name={`${user.firstName || user.email}${user.lastName ? ` ${user.lastName}` : ""}`}
           initials={`${user.firstName?.[0] || "H"}${user.lastName?.[0] || ""}`.toUpperCase()}
+          onLogout={signOut}
         />
         <nav className="grid grid-cols-2 gap-2 border-b border-[#A3E4D7] bg-white p-3 md:hidden" aria-label="Mobile HR workspace">
           {sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${activeSection === section ? "bg-[#208967] text-white" : "bg-[#E8F8F5] text-[#0F5257]"}`}>{section}</button>)}
-          <button onClick={signOut} className="rounded-lg bg-[#0B2B22] px-3 py-2 text-sm font-semibold text-white">Log out</button>
         </nav>
         <div className="mx-auto max-w-[1440px] px-8 pb-12 pt-7 max-md:px-4">
           {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
