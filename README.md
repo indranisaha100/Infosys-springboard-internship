@@ -22,18 +22,43 @@ The backend loads `backend/.env` for local development. Do not commit `.env` or 
 
 ### Backend on Render
 
-The root `render.yaml` defines the backend as a Docker web service. Create a Render Blueprint from this repository and provide the environment variables marked `sync: false` in the Render dashboard.
+The root `render.yaml` defines the backend as a Docker web service.
 
-Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `JWT_SECRET` to the production database and secret values. Set `APP_CORS_ALLOWED_ORIGIN_PATTERNS` and `APP_WS_ALLOWED_ORIGIN_PATTERNS` to the deployed Vercel origin (for example, `https://your-project.vercel.app`). Add any additional trusted preview origins explicitly if needed.
+1. In Render, create a Blueprint from this repository.
+2. Create or select a PostgreSQL database and copy its JDBC connection details.
+3. Set the environment variables marked `sync: false` in the Render dashboard:
 
-### Frontend on Vercel
+   - `DB_URL`: PostgreSQL JDBC URL, for example `jdbc:postgresql://host:5432/database`
+   - `DB_USERNAME`: PostgreSQL username
+   - `DB_PASSWORD`: PostgreSQL password
+   - `JWT_SECRET`: a strong, random secret
+   - `ADMIN_REGISTRATION_KEY`: optional admin registration key
+   - `HR_SETUP_KEY`: optional HR setup key
 
-Create a Vercel project using `frontend/` as its Root Directory. Set these environment variables for the deployment:
+4. After deploying the frontend, set `APP_CORS_ALLOWED_ORIGIN_PATTERNS` and `APP_WS_ALLOWED_ORIGIN_PATTERNS` to its Render URL, for example `https://knowledge-gap-frontend.onrender.com`.
 
-- `VITE_API_BASE_URL`: the Render backend URL followed by `/api`
-- `VITE_WS_URL`: the Render backend WebSocket URL ending in `/ws`, using `wss://` for HTTPS deployments
+The backend Dockerfile is [backend/Dockerfile](backend/Dockerfile), and the service uses port `8080` on Render. The backend URL should normally look like `https://knowledge-gap-backend.onrender.com`.
 
-The Vercel configuration builds the Vite app and rewrites frontend routes to `index.html`.
+### Frontend on Render
+
+Create a separate **Static Site** service in Render:
+
+- **Root Directory:** `frontend`
+- **Build Command:** `npm ci && npm run build`
+- **Publish Directory:** `dist`
+
+Set these environment variables before building:
+
+- `VITE_API_BASE_URL`: the Render backend URL followed by `/api`, for example `https://knowledge-gap-backend.onrender.com/api`
+- `VITE_WS_URL`: the Render backend WebSocket URL ending in `/ws`, for example `wss://knowledge-gap-backend.onrender.com/ws`
+
+Add the following rewrite rule so React Router works on direct URLs:
+
+| Source | Destination | Action |
+| --- | --- | --- |
+| `/*` | `/index.html` | Rewrite |
+
+After the frontend has a final Render URL, update the backend CORS and WebSocket origin environment variables and redeploy the backend.
 
 `VITE_` values are included in the browser bundle; never put credentials or secrets in them.
 
