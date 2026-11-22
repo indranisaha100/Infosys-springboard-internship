@@ -16,9 +16,6 @@ public class JwtTokenProvider {
     @Value("${app.jwt.secret}")
     private String secret;
 
-    @Value("${app.jwt.expiration-ms:86400000}")
-    private long jwtExpirationMs;
-
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(
                 secret.getBytes(StandardCharsets.UTF_8));
@@ -27,12 +24,10 @@ public class JwtTokenProvider {
     // Generate JWT token using user email
     public String generateToken(String email) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
                 .subject(email)
                 .issuedAt(now)
-                .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
     }
