@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { request } from "../../../shared/services/api";
 import DashboardHeader from "../../../shared/components/DashboardHeader";
 import MessagesPanel from "../../messaging/components/MessagesPanel";
+import SidebarIcon from "../../../shared/components/SidebarIcon";
 
 const navigation = [
   ["grid", "Dashboard"],
@@ -317,7 +318,7 @@ export default function MentorDashboardPage() {
       <Logo />
       <p className="mb-3 mt-10 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-blue-300 max-lg:hidden">Mentor workspace</p>
       <nav className="space-y-1" aria-label="Mentor workspace">
-        {navigation.map(([icon, label]) => <button key={label} onClick={() => setActiveItem(label)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeItem === label ? "bg-blue-600 font-semibold text-white shadow-lg shadow-blue-950/20" : "text-blue-200 hover:bg-white/10 hover:text-white"}`}><Icon name={icon} className="h-[18px] w-[18px] shrink-0" /><span className="max-lg:hidden">{label}</span></button>)}
+        {navigation.map(([, label]) => <button key={label} onClick={() => setActiveItem(label)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeItem === label ? "bg-blue-600 font-semibold text-white shadow-lg shadow-blue-950/20" : "text-blue-200 hover:bg-white/10 hover:text-white"}`}><SidebarIcon label={label} /><span className="max-lg:hidden">{label}</span></button>)}
       </nav>
     </aside>
 

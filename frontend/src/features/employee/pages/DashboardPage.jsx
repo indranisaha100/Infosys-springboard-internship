@@ -5,6 +5,7 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SkillAssessment from "../../skill-assessment/components/SkillAssessment";
 import { loadResult, scoreByTopic } from "../../skill-assessment/data/skillAssessmentData";
 import MessagesPanel from "../../messaging/components/MessagesPanel";
+import SidebarIcon from "../../../shared/components/SidebarIcon";
 
 const navigation = [
   ["dashboard", "Dashboard"], ["profile", "My Profile"], ["assessment", "Skill Assessment"],
@@ -563,7 +564,7 @@ export default function DashboardPage() {
           {navigation.map(([icon, label]) => {
             const locked = label === "AI Recommendations" && !assessmentResult;
             return <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#208967] text-white" : "text-blue-200 hover:bg-[#208967]"} disabled:cursor-not-allowed disabled:opacity-50`} key={label} onClick={() => selectSection(label)} disabled={locked} title={locked ? "Complete the skill assessment to unlock recommendations" : undefined} aria-disabled={locked}>
-              <Icon name={icon} className="h-[18px] w-[18px] shrink-0" /><span className="max-[650px]:hidden">{label}</span>
+              <SidebarIcon label={label} /><span className="max-[650px]:hidden">{label}</span>
               {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
               {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
             </button>;

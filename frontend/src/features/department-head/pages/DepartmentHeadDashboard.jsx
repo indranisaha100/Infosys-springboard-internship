@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDepartmentHeadDashboard } from "../services/departmentHeadApi";
+import DashboardHeader from "../../../shared/components/DashboardHeader";
+import SidebarIcon from "../../../shared/components/SidebarIcon";
 import "../styles/DepartmentHeadDashboard.css";
 
 const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard", icon: "▦" },
-  { id: "overview", label: "Department Overview", icon: "▤" },
-  { id: "matrix", label: "Department Skill Matrix", icon: "▥" },
-  { id: "heatmap", label: "Gap Heatmap", icon: "▦" },
-  { id: "capability", label: "Workforce Capability", icon: "♙" },
-  { id: "learning", label: "Learning & Mentoring", icon: "◈" },
-  { id: "risks", label: "Risk & Priority Alerts", icon: "⚑" },
-  { id: "reports", label: "Reports & Analytics", icon: "▧" },
-  { id: "announcements", label: "Announcements", icon: "▣" },
-  { id: "notifications", label: "Notifications", icon: "♢" },
+  { id: "dashboard", label: "Dashboard" },
+  { id: "overview", label: "Department Overview" },
+  { id: "matrix", label: "Department Skill Matrix" },
+  { id: "heatmap", label: "Gap Heatmap" },
+  { id: "capability", label: "Workforce Capability" },
+  { id: "learning", label: "Learning & Mentoring" },
+  { id: "risks", label: "Risk & Priority Alerts" },
+  { id: "reports", label: "Reports & Analytics" },
+  { id: "announcements", label: "Announcements" },
+  { id: "notifications", label: "Notifications" },
 ];
 
 function displayName(person) {
@@ -271,9 +273,11 @@ export default function DepartmentHeadDashboard() {
     skill.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const pageTitle =
-    NAV_ITEMS.find((item) => item.id === activeSection)?.label ||
-    "Dashboard";
+  const departmentHead = data?.departmentHead || sessionUser || {};
+  const departmentHeadName = displayName(departmentHead);
+  const departmentHeadInitials =
+    `${departmentHead.firstName?.[0] || departmentHeadName[0] || "D"}${departmentHead.lastName?.[0] || ""}`
+      .toUpperCase();
 
   return (
     <div className="dh-layout">
@@ -308,7 +312,7 @@ export default function DepartmentHeadDashboard() {
               }}
               type="button"
             >
-              <span>{item.icon}</span>
+              <SidebarIcon label={item.label} />
               {item.label}
             </button>
           ))}
@@ -323,36 +327,12 @@ export default function DepartmentHeadDashboard() {
       </aside>
 
       <main className="dh-main">
-        <header className="dh-topbar">
-          <div>
-            <span>Workspace / </span>
-            <strong>{pageTitle}</strong>
-          </div>
-
-          <div className="dh-topbar-actions">
-            <div className="dh-user-chip">
-              <span>
-                {(
-                  displayName(
-                    data?.departmentHead || sessionUser
-                  ).charAt(0) || "D"
-                ).toUpperCase()}
-              </span>
-
-              <div>
-                <strong>
-                  {displayName(
-                    data?.departmentHead || sessionUser
-                  )}
-                </strong>
-                <small>Department Head</small>
-              </div>
-            </div>
-            <button type="button" className="workspace-logout-button" onClick={logout}>
-              LOG OUT
-            </button>
-          </div>
-        </header>
+        <DashboardHeader
+          title="Department Dashboard"
+          name={departmentHeadName}
+          initials={departmentHeadInitials}
+          onLogout={logout}
+        />
 
         <div className="dh-content">
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { request } from "../../../shared/services/api";
 import DashboardHeader from "../../../shared/components/DashboardHeader";
+import SidebarIcon from "../../../shared/components/SidebarIcon";
 
 const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Role Benchmarks"];
 
@@ -311,7 +312,7 @@ export default function HRDashboardPage() {
       <aside className="workspace-sidebar fixed inset-y-0 left-0 z-20 flex w-64 flex-col bg-[#0b2b22] px-4 py-6 text-white max-lg:w-[76px] max-lg:px-3 max-md:hidden">
         <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#50C878] text-[#073d37]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 17V13M12 17V8M18 17V5" /></svg></span><span className="max-lg:hidden"><strong className="block text-lg">SkillTrack</strong><small className="text-[10px] text-[#A3E4D7]">HR workspace</small></span></div>
         <p className="mb-3 mt-9 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-[#A3E4D7] max-lg:hidden">HR workspace</p>
-        <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`w-full rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><span className="max-lg:hidden">{section}</span><span className="hidden max-lg:inline" aria-hidden="true">{section.slice(0, 1)}</span></button>)}</nav>
+        <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><SidebarIcon label={section} /><span className="max-lg:hidden">{section}</span></button>)}</nav>
       </aside>
 
       <section className="ml-64 min-h-screen max-lg:ml-[76px] max-md:ml-0">

@@ -1,13 +1,15 @@
 
+import SidebarIcon from "../../../shared/components/SidebarIcon";
+
 const menuItems = [
-  { id: "dashboard", label: "Dashboard", icon: "▦" },
-  { id: "employees", label: "My Employees", icon: "♙" },
-  { id: "mentors", label: "Mentor Directory", icon: "♧" },
-  { id: "coverage", label: "Skill Gap Analysis", icon: "▥" },
-  { id: "heatmap", label: "Skill Gap Heatmap", icon: "▦" },
-  { id: "assessments", label: "Assessments", icon: "✓" },
-  { id: "alerts", label: "Critical Alerts", icon: "⚑" },
-  { id: "reports", label: "Team Reports", icon: "▤" },
+  { id: "dashboard", label: "Dashboard" },
+  { id: "employees", label: "My Employees" },
+  { id: "mentors", label: "Mentor Directory" },
+  { id: "coverage", label: "Skill Gap Analysis" },
+  { id: "heatmap", label: "Skill Gap Heatmap" },
+  { id: "assessments", label: "Assessments" },
+  { id: "alerts", label: "Critical Alerts" },
+  { id: "reports", label: "Team Reports" },
 ];
 
 export default function ManagerSidebar({
@@ -41,7 +43,7 @@ export default function ManagerSidebar({
             }
             onClick={() => onSectionChange(item.id)}
           >
-            <span>{item.icon}</span>
+            <SidebarIcon label={item.label} />
             {item.label}
           </button>
         ))}
