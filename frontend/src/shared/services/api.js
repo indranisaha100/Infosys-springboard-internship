@@ -74,9 +74,15 @@ export async function request(path, options = {}) {
       response: body,
     });
 
-    throw new Error(
-      `HTTP ${response.status}: ${message || "No response body"}`
-    );
+    if (response.status === 401) {
+      localStorage.removeItem("kgipToken");
+      localStorage.removeItem("kgipUser");
+      window.dispatchEvent(new CustomEvent("kgip:unauthorized"));
+    }
+
+    const error = new Error(`HTTP ${response.status}: ${message || "No response body"}`);
+    error.status = response.status;
+    throw error;
   }
 
   return body;

@@ -5,6 +5,11 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import MessagesPanel from "../../messaging/components/MessagesPanel";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
+import MentorSessionsPage from "../components/MentorSessionsPage";
+import MentorLearningProgress from "../components/MentorLearningProgress";
+import MenteeDetailPanel from "../components/MenteeDetailPanel";
+import AssignCourseDialog from "../components/AssignCourseDialog";
+import { formatDateTime, relativeTime } from "../../../shared/utils/sessions";
 
 const navigation = [
   ["grid", "Dashboard"],
@@ -20,71 +25,31 @@ const navigation = [
   ["bell", "Notifications"],
 ];
 
-const fallbackData = {
-  stats: [
-    { label: "Total Team Members", value: 24, note: "Across 5 departments", icon: "users", tone: "blue" },
-    { label: "Employees with Skill Gaps", value: 12, note: "4 high priority", icon: "gap", tone: "amber" },
-    { label: "Training Adoption Rate", value: 76, note: "Up 8.4% this month", icon: "book", tone: "purple" },
-    { label: "Critical Skill Gaps", value: 6, note: "3 require urgent action", icon: "check", tone: "green" },
-  ],
-  mentees: [
-    { name: "Aarav Sharma", initials: "AS", department: "Engineering", skill: "Java", gap: "Spring Boot", progress: 82, status: "On Track" },
-    { name: "Priya Menon", initials: "PM", department: "Data & Analytics", skill: "SQL", gap: "Query Optimization", progress: 58, status: "Needs Attention" },
-    { name: "Rohan Das", initials: "RD", department: "Product", skill: "React", gap: "State Management", progress: 74, status: "On Track" },
-    { name: "Maya Iyer", initials: "MI", department: "Customer Success", skill: "Communication", gap: "Presentation Skills", progress: 100, status: "Completed" },
-    { name: "Nikhil Rao", initials: "NR", department: "Operations", skill: "Cloud", gap: "AWS Fundamentals", progress: 63, status: "Needs Attention" },
-  ],
-  gaps: [
-    { name: "Java Programming", value: 72, color: "bg-blue-500" },
-    { name: "SQL and Database Management", value: 58, color: "bg-violet-500" },
-    { name: "React Development", value: 46, color: "bg-cyan-500" },
-    { name: "Cloud Computing", value: 38, color: "bg-amber-500" },
-    { name: "Communication Skills", value: 29, color: "bg-emerald-500" },
-  ],
-  heatmap: [
-    { skill: "Java", values: [85, 78, 65, 60, 52] },
-    { skill: "SQL", values: [72, 70, 62, 55, 48] },
-    { skill: "React", values: [68, 75, 63, 58, 41] },
-    { skill: "Cloud", values: [50, 45, 39, 33, 28] },
-  ],
-  learningProgress: [
-    { title: "Not Started", count: 6, color: "bg-slate-200" },
-    { title: "In Progress", count: 11, color: "bg-blue-500" },
-    { title: "Completed", count: 7, color: "bg-emerald-500" },
-  ],
-  recommendations: [
-    { title: "Building Production APIs with Spring Boot", category: "Java", difficulty: "Intermediate", duration: "6 hours", icon: "code" },
-    { title: "SQL Performance Tuning Essentials", category: "SQL", difficulty: "Advanced", duration: "4 hours", icon: "database" },
-    { title: "Modern React State Patterns", category: "React", difficulty: "Intermediate", duration: "3.5 hours", icon: "layers" },
-    { title: "AWS Fundamentals for Team Leads", category: "Cloud", difficulty: "Beginner", duration: "5 hours", icon: "chart" },
-  ],
-  sessions: [
-    { name: "Aarav Sharma", topic: "Spring Boot architecture review", date: "Oct 28, 2026", time: "10:00 AM" },
-    { name: "Rohan Das", topic: "React project check-in", date: "Oct 29, 2026", time: "2:30 PM" },
-    { name: "Priya Menon", topic: "SQL learning plan", date: "Oct 31, 2026", time: "11:00 AM" },
-  ],
-  activity: [
-    { text: "Maya Iyer completed a skill assessment.", time: "18 minutes ago", icon: "check" },
-    { text: "A new React knowledge gap was detected for Rohan Das.", time: "2 hours ago", icon: "gap" },
-    { text: "You assigned SQL Performance Tuning Essentials to Priya Menon.", time: "Yesterday", icon: "book" },
-    { text: "Aarav Sharma improved his Java score by 12%.", time: "Yesterday", icon: "chart" },
-  ],
-  assessments: [
-    { name: "Aarav Sharma", score: 82, change: "+12%", date: "Oct 26" },
-    { name: "Priya Menon", score: 58, change: "+5%", date: "Oct 25" },
-    { name: "Rohan Das", score: 74, change: "+9%", date: "Oct 24" },
-    { name: "Nikhil Rao", score: 63, change: "+7%", date: "Oct 23" },
-  ],
+const emptyData = {
+  mentor: null,
+  menteeCount: 0,
+  stats: [],
+  mentees: [],
+  gaps: [],
+  heatmapColumns: [],
+  heatmap: [],
+  learningProgress: [],
+  recommendations: [],
+  sessions: [],
+  activity: [],
+  assessments: [],
+  impact: null,
 };
 
 function normalizeDashboardData(result) {
-  if (!result || typeof result !== "object") return fallbackData;
+  if (!result || typeof result !== "object") return emptyData;
 
   const arrayFields = [
     "stats",
     "mentees",
     "gaps",
     "heatmap",
+    "heatmapColumns",
     "learningProgress",
     "recommendations",
     "sessions",
@@ -95,9 +60,9 @@ function normalizeDashboardData(result) {
   return arrayFields.reduce(
     (normalized, field) => ({
       ...normalized,
-      [field]: Array.isArray(result[field]) ? result[field] : fallbackData[field],
+      [field]: Array.isArray(result[field]) ? result[field] : emptyData[field],
     }),
-    { ...fallbackData, ...result },
+    { ...emptyData, ...result },
   );
 }
 
@@ -130,7 +95,7 @@ function Logo() {
 
 function StatCard({ stat }) {
   const tones = { blue: "bg-blue-50 text-blue-600", amber: "bg-amber-50 text-amber-600", purple: "bg-violet-50 text-violet-600", green: "bg-emerald-50 text-emerald-600" };
-  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><span className={`grid h-11 w-11 place-items-center rounded-xl ${tones[stat.tone]}`}><Icon name={stat.icon} /></span><span className="text-xs font-medium text-emerald-600">+8.4%</span></div><p className="mb-1 mt-5 text-xs font-medium text-slate-500">{stat.label}</p><strong className="text-3xl tracking-tight text-[#0b1d35]">{stat.value}</strong><p className="mt-1 text-xs text-slate-400">{stat.note}</p></article>;
+  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><span className={`grid h-11 w-11 place-items-center rounded-xl ${tones[stat.tone]}`}><Icon name={stat.icon} /></span></div><p className="mb-1 mt-5 text-xs font-medium text-slate-500">{stat.label}</p><strong className="text-3xl tracking-tight text-[#0b1d35]">{stat.value}</strong><p className="mt-1 text-xs text-slate-400">{stat.note}</p></article>;
 }
 
 function SectionHeading({ title, action, onAction }) {
@@ -144,8 +109,6 @@ const sectionEndpoints = {
   "Employee Assessments": "assessments",
   "Training Recommendations": "recommendations",
   "Learning Recommendations": "recommendations",
-  "Learning Progress": "sessions",
-  "Mentorship Management": "sessions",
   "Mentorship Requests": "requests",
   "Messages / Chatbox": "sessions",
 };
@@ -176,8 +139,8 @@ function SectionWorkspace({ activeItem, data, dashboardData, loading, error, sea
       ) : activeItem === "Team Skill Gap Heatmap" ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left text-xs">
-            <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{["A", "B", "C", "D", "E"].map((label) => <th key={label} className="px-3 py-3 text-center font-semibold">{label}</th>)}</tr></thead>
-            <tbody>{dashboardData.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value}</span></td>)}</tr>)}</tbody>
+            <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{dashboardData.heatmapColumns.map((column) => <th key={column.label + column.name} title={column.name} className="px-3 py-3 text-center font-semibold">{column.label}</th>)}</tr></thead>
+            <tbody>{dashboardData.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value == null ? "bg-slate-100 text-slate-400" : value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value ?? "–"}</span></td>)}</tr>)}</tbody>
           </table>
         </div>
       ) : activeItem === "Training Recommendations" ? (
@@ -233,7 +196,7 @@ function SectionWorkspace({ activeItem, data, dashboardData, loading, error, sea
 export default function MentorDashboardPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("kgipUser") || "null");
-  const [data, setData] = useState(fallbackData);
+  const [data, setData] = useState(emptyData);
   const [activeItem, setActiveItem] = useState("Dashboard");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
@@ -243,6 +206,10 @@ export default function MentorDashboardPage() {
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [sectionError, setSectionError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [selectedMentee, setSelectedMentee] = useState("");
+  const [assignDialog, setAssignDialog] = useState(null); // { resource, email }
+  const [sessionPreselect, setSessionPreselect] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -252,7 +219,7 @@ export default function MentorDashboardPage() {
     loadDashboard();
     const refresh = window.setInterval(loadDashboard, 30000);
     return () => { active = false; window.clearInterval(refresh); };
-  }, []);
+  }, [reloadKey]);
 
   useEffect(() => {
     const endpoint = sectionEndpoints[activeItem];
@@ -330,31 +297,106 @@ export default function MentorDashboardPage() {
       <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-8 max-md:px-4 max-md:pb-24">
         {message && <div role="status" className="fixed right-6 top-24 z-30 rounded-xl bg-[#0b1d35] px-4 py-3 text-xs font-medium text-white shadow-xl">{message}</div>}
         {dataError && <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><span>{authError ? "Your mentor session is missing or expired. Sign in again to load live data." : `Live mentor data could not be loaded: ${dataError}`}</span><button className="font-semibold underline" onClick={() => authError ? signOut() : window.location.reload()}>{authError ? "Sign in" : "Retry"}</button></div>}
-        {(activeItem === "Messages" || activeItem === "Messages / Chatbox") ? <MessagesPanel/> : activeItem === "Notifications" ? <NotificationInbox roleLabel="Mentor workspace" /> : activeItem !== "Dashboard" ? <SectionWorkspace activeItem={activeItem} data={sectionData} dashboardData={data} loading={sectionLoading} error={sectionError} search={search} onSearchChange={setSearch} onRequestAction={refreshMentorshipRequests} onSelectMentee={(employee) => showMessage(`${employee.name} selected. Assessment and mentoring actions are ready.`)} /> : <>
+        {(activeItem === "Messages" || activeItem === "Messages / Chatbox")
+          ? <MessagesPanel />
+          : activeItem === "Notifications"
+            ? <NotificationInbox roleLabel="Mentor workspace" />
+            : activeItem === "Learning Progress"
+              ? <MentorLearningProgress key={reloadKey} onAssign={(email) => setAssignDialog({ resource: null, email: email || "" })} />
+              : activeItem === "Mentorship Management"
+                ? <MentorSessionsPage key={sessionPreselect} mentees={data.mentees} preselectEmail={sessionPreselect} onChanged={() => setReloadKey((key) => key + 1)} />
+                : activeItem !== "Dashboard"
+                  ? <SectionWorkspace activeItem={activeItem} data={sectionData} dashboardData={data} loading={sectionLoading} error={sectionError} search={search} onSearchChange={setSearch} onRequestAction={refreshMentorshipRequests} onSelectMentee={(employee) => setSelectedMentee(employee.email)} />
+                  : <>
           <section className="flex items-center gap-5 rounded-2xl bg-gradient-to-br from-[#123c71] to-[#1d5eb1] p-7 text-white shadow-lg shadow-blue-900/10">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-blue-200">Tuesday, October 27, 2026</p>
-              <h2 className="m-0 text-3xl font-bold tracking-tight">Welcome back, Mentor!</h2>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-blue-200">{new Date().toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+              <h2 className="m-0 text-3xl font-bold tracking-tight">Welcome back, {firstName}!</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Help your mentees grow by identifying skill gaps and recommending personalized learning paths.</p>
             </div>
           </section>
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{data.stats.map((stat) => <StatCard key={stat.label} stat={stat} />)}</section>
 
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><SectionHeading title="Team overview" action="View all" onAction={() => setActiveItem("My Team")} /><div className="mb-4 flex flex-wrap items-center gap-2"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 outline-none"><option>All statuses</option><option>On Track</option><option>Needs Attention</option><option>Completed</option></select><input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-[#0b1d35] outline-none" placeholder="Search mentees..." aria-label="Search mentees" /><span className="text-xs text-slate-400">{mentees.length} team members shown</span></div><div className="overflow-x-auto"><table className="w-full min-w-[780px] border-collapse text-left text-xs"><thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Employee name</th><th className="px-3 py-3 font-semibold">Department</th><th className="px-3 py-3 font-semibold">Primary skill</th><th className="px-3 py-3 font-semibold">Knowledge gap</th><th className="px-3 py-3 font-semibold">Progress</th><th className="px-3 py-3 font-semibold">Status</th><th className="px-3 py-3 font-semibold">Action</th></tr></thead><tbody>{mentees.map((mentee) => <tr key={mentee.name} className="border-b border-slate-50 last:border-0"><td className="px-3 py-4"><div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[10px] font-bold text-blue-600">{mentee.initials}</span><strong>{mentee.name}</strong></div></td><td className="px-3 py-4 text-slate-500">{mentee.department}</td><td className="px-3 py-4 font-medium text-blue-900">{mentee.skill}</td><td className="px-3 py-4 text-slate-500">{mentee.gap}</td><td className="px-3 py-4"><div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-500" style={{ width: `${mentee.progress}%` }} /></div><span className="text-[10px] font-semibold">{mentee.progress}%</span></div></td><td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${mentee.status === "Completed" ? "bg-emerald-50 text-emerald-700" : mentee.status === "Needs Attention" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{mentee.status}</span></td><td className="px-3 py-4"><button className="font-semibold text-blue-600 hover:text-blue-800" onClick={() => showMessage(`Opening ${mentee.name}'s profile.`)}>View</button></td></tr>)}</tbody></table></div></section>
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeading title="Team overview" action="View all" onAction={() => setActiveItem("My Team")} />
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 outline-none">
+                <option>All statuses</option><option>On Track</option><option>Needs Attention</option><option>Completed</option>
+              </select>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-[#0b1d35] outline-none" placeholder="Search mentees..." aria-label="Search mentees" />
+              <span className="text-xs text-slate-400">{mentees.length} team members shown</span>
+            </div>
+            {data.menteeCount === 0 && <p className="mb-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">No mentees are assigned to you yet. HR assigns mentees from <b>HR workspace → Mentor Assignments</b>, and you can accept employee requests under Mentorship Requests.</p>}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[780px] border-collapse text-left text-xs">
+                <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Employee name</th><th className="px-3 py-3 font-semibold">Department</th><th className="px-3 py-3 font-semibold">Primary skill</th><th className="px-3 py-3 font-semibold">Knowledge gap</th><th className="px-3 py-3 font-semibold">Progress</th><th className="px-3 py-3 font-semibold">Status</th><th className="px-3 py-3 font-semibold">Action</th></tr></thead>
+                <tbody>{mentees.map((mentee) => <tr key={mentee.email} className="border-b border-slate-50 last:border-0">
+                  <td className="px-3 py-4"><div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[10px] font-bold text-blue-600">{mentee.initials}</span><strong>{mentee.name}</strong></div></td>
+                  <td className="px-3 py-4 text-slate-500">{mentee.department}</td><td className="px-3 py-4 font-medium text-blue-900">{mentee.skill}</td><td className="px-3 py-4 text-slate-500">{mentee.gap}</td>
+                  <td className="px-3 py-4"><div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-500" style={{ width: `${mentee.progress}%` }} /></div><span className="text-[10px] font-semibold">{mentee.progress}%</span></div></td>
+                  <td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${mentee.status === "Completed" ? "bg-emerald-50 text-emerald-700" : mentee.status === "Needs Attention" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{mentee.status}</span></td>
+                  <td className="px-3 py-4"><button className="font-semibold text-blue-600 hover:text-blue-800" onClick={() => setSelectedMentee(mentee.email)}>View</button></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </section>
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeading title="Team skill gap analysis" />
+            {data.gaps.length === 0 && <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">Gaps appear after your mentees submit a skill assessment.</p>}
             <div className="space-y-5">{data.gaps.map((gap) => <div key={gap.name}>
               <div className="mb-2 flex justify-between text-xs"><span className="font-medium text-slate-600">{gap.name}</span><strong className="text-[#0b1d35]">{gap.value}%</strong></div>
               <div className="h-2 rounded-full bg-slate-100"><div className={`h-full rounded-full ${gap.color}`} style={{ width: `${gap.value}%` }} /></div>
             </div>)}</div>
           </section>
 
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><SectionHeading title="Team skill gap heatmap" action="Open heatmap" onAction={() => setActiveItem("Team Skill Gap Heatmap")} /><div className="overflow-x-auto"><table className="w-full min-w-[520px] border-collapse text-left text-xs"><thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{["A", "B", "C", "D", "E"].map((label) => <th key={label} className="px-3 py-3 font-semibold text-center">{label}</th>)}</tr></thead><tbody>{data.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value}</span></td>)}</tr>)}</tbody></table></div></section>
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeading title="Team skill gap heatmap" action="Open heatmap" onAction={() => setActiveItem("Team Skill Gap Heatmap")} />
+            <div className="overflow-x-auto"><table className="w-full min-w-[520px] border-collapse text-left text-xs">
+              <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{data.heatmapColumns.map((column) => <th key={`${column.label}-${column.name}`} title={column.name} className="px-3 py-3 text-center font-semibold">{column.label}</th>)}</tr></thead>
+              <tbody>{data.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value == null ? "bg-slate-100 text-slate-400" : value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value ?? "–"}</span></td>)}</tr>)}</tbody>
+            </table></div>
+          </section>
 
-          <section className="mt-8"><SectionHeading title="Learning recommendations" action="Manage recommendations" onAction={() => setActiveItem("Learning Recommendations")} /><div className="grid gap-4 md:grid-cols-3">{data.recommendations.map((resource) => <article key={resource.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-50 text-violet-600"><Icon name={resource.icon} /></span><p className="mb-1 mt-4 text-[10px] font-bold uppercase tracking-wider text-violet-600">{resource.category}</p><h3 className="m-0 min-h-12 text-sm font-bold leading-5 text-[#0b1d35]">{resource.title}</h3><div className="mt-4 flex gap-2 text-[10px] text-slate-500"><span className="rounded bg-slate-100 px-2 py-1">{resource.difficulty}</span><span className="rounded bg-slate-100 px-2 py-1">{resource.duration}</span></div><button className="mt-5 w-full rounded-lg border border-blue-200 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50" onClick={() => showMessage(`Assigning ${resource.title}.`)}>Assign Resource</button></article>)}</div></section>
+          <section className="mt-8">
+            <SectionHeading title="Learning recommendations" action="Manage recommendations" onAction={() => setActiveItem("Learning Recommendations")} />
+            <div className="grid gap-4 md:grid-cols-3">
+              {data.recommendations.length === 0 && <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm md:col-span-3">Recommendations are matched to your mentees' gaps from HR's published resources.</p>}
+              {data.recommendations.map((resource) => <article key={resource.id || resource.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-50 text-violet-600"><Icon name={resource.icon} /></span>
+                <p className="mb-1 mt-4 text-[10px] font-bold uppercase tracking-wider text-violet-600">{resource.category}</p>
+                <h3 className="m-0 min-h-12 text-sm font-bold leading-5 text-[#0b1d35]">{resource.title}</h3>
+                <div className="mt-4 flex gap-2 text-[10px] text-slate-500"><span className="rounded bg-slate-100 px-2 py-1">{resource.difficulty}</span><span className="rounded bg-slate-100 px-2 py-1">{resource.duration}</span></div>
+                <button className="mt-5 w-full rounded-lg border border-blue-200 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50" onClick={() => setAssignDialog({ resource, email: "" })}>Assign Resource</button>
+              </article>)}
+            </div>
+          </section>
 
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><Icon name="chart" /></span><div><p className="m-0 text-xs text-slate-500">Mentor impact</p><strong className="text-2xl text-[#0b1d35]">86%</strong></div></div><p className="mt-4 text-xs leading-5 text-slate-500">Your mentees are making consistent progress. Keep focusing on the four high-priority knowledge gaps this month.</p></section>
+          <section className="mt-8 grid gap-4 lg:grid-cols-2">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <SectionHeading title="Upcoming sessions" action="Manage" onAction={() => { setSessionPreselect(""); setActiveItem("Mentorship Management"); }} />
+              {data.sessions.length === 0
+                ? <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">No sessions scheduled. Book one with a Google Meet link.</p>
+                : <div className="space-y-3">{data.sessions.map((session) => <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 p-3 text-xs">
+                  <span><strong className="text-[#0b1d35]">{session.title}</strong><span className="block text-slate-500">{session.employeeName} · {formatDateTime(session.scheduledAt)}</span></span>
+                  {session.meetLink ? <a href={session.meetLink} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">Join Meet</a> : <span className="text-[10px] text-amber-600">Add Meet link</span>}
+                </div>)}</div>}
+            </article>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <SectionHeading title="Recent activity" />
+              {data.activity.length === 0
+                ? <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">Activity from your mentees will show up here.</p>
+                : <ul className="m-0 space-y-3 p-0">{data.activity.map((item, index) => <li key={`${item.at}-${index}`} className="flex list-none items-start gap-3 text-xs">
+                  <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600"><Icon name={item.icon} className="h-4 w-4" /></span>
+                  <span><span className="text-slate-700">{item.text}</span><span className="block text-[10px] text-slate-400">{relativeTime(item.at)}</span></span>
+                </li>)}</ul>}
+            </article>
+          </section>
+
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><Icon name="chart" /></span><div><p className="m-0 text-xs text-slate-500">Mentee readiness (average of assessed mentees)</p><strong className="text-2xl text-[#0b1d35]">{data.impact?.value == null ? "—" : `${data.impact.value}%`}</strong></div></div>
+            <p className="mt-4 text-xs leading-5 text-slate-500">{data.impact?.note || "Readiness appears once your mentees submit a skill assessment."}</p>
+          </section>
         </>}
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden" aria-label="Mobile mentor workspace">
@@ -372,5 +414,10 @@ export default function MentorDashboardPage() {
 
     </section>
 
+    {selectedMentee && <MenteeDetailPanel email={selectedMentee} onClose={() => setSelectedMentee("")}
+      onSchedule={(email) => { setSelectedMentee(""); setSessionPreselect(email); setActiveItem("Mentorship Management"); }}
+      onAssign={(email) => { setSelectedMentee(""); setAssignDialog({ resource: null, email }); }} />}
+    {assignDialog && <AssignCourseDialog mentees={data.mentees} resource={assignDialog.resource} defaultEmail={assignDialog.email}
+      onClose={() => setAssignDialog(null)} onDone={(text) => { setAssignDialog(null); showMessage(text); setReloadKey((key) => key + 1); }} />}
   </main>;
 }

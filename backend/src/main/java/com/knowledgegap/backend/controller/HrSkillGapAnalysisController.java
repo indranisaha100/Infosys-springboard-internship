@@ -124,7 +124,7 @@ public class HrSkillGapAnalysisController {
             program.setCreatedAt(Instant.now());
             program = programs.save(program);
 
-            enrollEmployee(gap.employee(), mentor, learningTitle);
+            enrollEmployee(gap.employee(), mentor, learningTitle, gap.competency());
             if (mentor != null) {
                 MentorshipRequest mentorship = new MentorshipRequest();
                 mentorship.setEmployeeEmail(gap.employee().getEmail());
@@ -419,7 +419,7 @@ public class HrSkillGapAnalysisController {
         return value != null && value.toLowerCase(Locale.ROOT).contains(target);
     }
 
-    private void enrollEmployee(User employee, User mentor, String learningTitle) {
+    private void enrollEmployee(User employee, User mentor, String learningTitle, String competency) {
         LearningEnrollment enrollment = enrollments
                 .findFirstByEmployeeEmailIgnoreCaseAndLearningTitleIgnoreCase(employee.getEmail(), learningTitle)
                 .orElseGet(LearningEnrollment::new);
@@ -430,6 +430,10 @@ public class HrSkillGapAnalysisController {
             enrollment.setProgressPercent(0);
         }
         if (mentor != null) enrollment.setMentorEmail(mentor.getEmail());
+        enrollment.setCompetency(competency);
+        if (enrollment.getAssignedAt() == null) enrollment.setAssignedAt(Instant.now());
+        if (enrollment.getAssignedBy() == null) enrollment.setAssignedBy("SYSTEM");
+        if (enrollment.getSource() == null) enrollment.setSource("SKILL_GAP_PLAN");
         enrollment.setUpdatedAt(Instant.now());
         enrollments.save(enrollment);
     }

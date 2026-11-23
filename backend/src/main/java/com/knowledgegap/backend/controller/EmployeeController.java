@@ -19,6 +19,8 @@ import com.knowledgegap.backend.repository.FeedbackRepository;
 import com.knowledgegap.backend.repository.LearningEnrollmentRepository;
 import com.knowledgegap.backend.security.JwtTokenProvider;
 import com.knowledgegap.backend.service.GeminiRecommendationService;
+import com.knowledgegap.backend.service.EmployeeDashboardService;
+import com.knowledgegap.backend.service.LearningProgressService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,6 +65,11 @@ public class EmployeeController {
     private final TrainingProgrammeRepository trainingProgrammeRepository;
     private final FeedbackRepository feedbackRepository;
     private final LearningEnrollmentRepository learningEnrollmentRepository;
+
+    @Autowired(required = false)
+    private EmployeeDashboardService dashboardService;
+    @Autowired(required = false)
+    private LearningProgressService learningProgressService;
 
     @Autowired
     public EmployeeController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
@@ -138,6 +145,12 @@ public class EmployeeController {
             return record;
         }).toList();
         assessmentScoreRepository.saveAll(records);
+        if (learningProgressService != null) {
+            Map<String, Boolean> metTarget = new LinkedHashMap<>();
+            records.forEach(record -> metTarget.put(record.getTopic(),
+                    record.getRightAnswers() >= record.getTargetAnswers()));
+            learningProgressService.closePlansForMetTargets(user.get().getEmail(), metTarget);
+        }
         return ResponseEntity.ok(Map.of("message", "Assessment scores saved.", "submittedAt", submittedAt));
     }
 
@@ -163,25 +176,8 @@ public class EmployeeController {
     public ResponseEntity<?> dashboard(@RequestHeader(value = "Authorization", required = false) String authorization) {
         Optional<User> user = authenticatedEmployee(authorization);
         if (user.isEmpty()) return unauthorized();
-
-        return ResponseEntity.ok(Map.of(
-                "user", userSummary(user.get()),
-                "readiness", Map.of("score", 78, "label", "Strong foundation", "change", "Up 6% this quarter"),
-                "stats", List.of(
-                        Map.of("label", "Total skills", "value", "24", "note", "Across 5 categories"),
-                        Map.of("label", "Skills to improve", "value", "6", "note", "2 are high priority"),
-                        Map.of("label", "Learning progress", "value", "68%", "note", "+12% this month"),
-                        Map.of("label", "Completed trainings", "value", "12", "note", "3 this quarter")),
-                "gaps", List.of(
-                        Map.of("name", "Product", "current", 62, "required", 77),
-                        Map.of("name", "Advanced", "current", 55, "required", 77),
-                        Map.of("name", "Data-Informed", "current", 68, "required", 73),
-                        Map.of("name", "Stakeholder", "current", 70, "required", 73)),
-                "assessments", List.of(
-                        assessment("PR", "Product Strategy", 78, 90, "-12%", "Medium"),
-                        assessment("AD", "Advanced Prototyping", 62, 90, "-28%", "High"),
-                        assessment("DA", "Data-Informed Design", 68, 85, "-17%", "Medium"),
-                        assessment("ST", "Stakeholder Management", 82, 85, "-3%", "Low"))));
+        // Every number comes from the database (assessments, enrollments, mentorship) - no constants.
+        return ResponseEntity.ok(dashboardService.build(user.get()));
     }
 
     @GetMapping("/recommendations/skills")
@@ -269,17 +265,60 @@ public ResponseEntity<?> chat(
         if (user.isEmpty()) return unauthorized();
 
         return switch (section.toLowerCase()) {
-            case "skills" -> ResponseEntity.ok(Map.of("section", "My Skills", "message", "Your 24 tracked skills are up to date.", "items", List.of("Product Strategy", "Advanced Prototyping", "Data-Informed Design", "Stakeholder Management")));
-            case "gaps" -> ResponseEntity.ok(Map.of("section", "Knowledge Gaps", "message", "You have 6 skills to improve, including 2 high-priority gaps."));
+            case "skills" -> ResponseEntity.ok(skillsSection(user.get()));
+            case "gaps" -> ResponseEntity.ok(gapsSection(user.get()));
             case "learning" -> ResponseEntity.ok(employeeLearning(user.get()));
             case "programmes", "training-programmes" -> ResponseEntity.ok(employeeProgrammes());
             case "feedback" -> ResponseEntity.ok(employeeFeedback(user.get()));
             case "notifications" -> ResponseEntity.ok(employeeNotifications(user.get()));
-            case "reports" -> ResponseEntity.ok(Map.of("section", "Reports", "message", "Your latest skills assessment report is ready."));
+            case "reports" -> ResponseEntity.ok(reportsSection(user.get()));
             case "profile" -> ResponseEntity.ok(Map.of("section", "My Profile", "user", userSummary(user.get())));
             case "settings" -> ResponseEntity.ok(Map.of("section", "Settings", "message", "Your workspace settings are available."));
             default -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Employee section not found."));
         };
+    }
+
+    private List<AssessmentScore> latestAssessment(User user) {
+        List<AssessmentScore> all = assessmentScoreRepository.findByEmployeeEmailOrderBySubmittedAtDesc(user.getEmail());
+        if (all.isEmpty()) return List.of();
+        Instant latest = all.get(0).getSubmittedAt();
+        return all.stream().filter(score -> latest.equals(score.getSubmittedAt())).toList();
+    }
+
+    private Map<String, Object> skillsSection(User user) {
+        List<AssessmentScore> latest = latestAssessment(user);
+        if (latest.isEmpty()) {
+            return Map.of("section", "My Skills", "message", "No skills have been assessed yet.",
+                    "nextAction", "Take the skill assessment to see where you stand.");
+        }
+        List<String> items = latest.stream()
+                .map(score -> score.getTopic() + " · " + Math.round(score.getRightAnswers() * 100f / score.getTotalQuestions())
+                        + "% (target " + Math.round(score.getTargetAnswers() * 100f / score.getTotalQuestions()) + "%)")
+                .toList();
+        return Map.of("section", "My Skills", "message", latest.size() + " skills assessed.", "items", items);
+    }
+
+    private Map<String, Object> gapsSection(User user) {
+        List<AssessmentScore> latest = latestAssessment(user);
+        if (latest.isEmpty()) {
+            return Map.of("section", "Knowledge Gaps", "message", "Complete the skill assessment to see your gaps.");
+        }
+        long gaps = latest.stream().filter(score -> score.getRightAnswers() < score.getTargetAnswers()).count();
+        long high = latest.stream().filter(score -> score.getRightAnswers() == 0).count();
+        return Map.of("section", "Knowledge Gaps", "message",
+                "You have " + gaps + " skill(s) below target, including " + high + " high-priority gap(s).");
+    }
+
+    private Map<String, Object> reportsSection(User user) {
+        List<AssessmentScore> latest = latestAssessment(user);
+        if (latest.isEmpty()) {
+            return Map.of("section", "Reports", "message", "No report yet - submit a skill assessment first.");
+        }
+        int right = latest.stream().mapToInt(AssessmentScore::getRightAnswers).sum();
+        int total = latest.stream().mapToInt(AssessmentScore::getTotalQuestions).sum();
+        return Map.of("section", "Reports", "message",
+                "Latest assessment on " + latest.get(0).getSubmittedAt() + ": " + right + " of " + total
+                        + " correct (" + Math.round(right * 100f / Math.max(total, 1)) + "%).");
     }
 
     private Map<String, Object> employeeLearning(User user) {
@@ -500,11 +539,6 @@ public ResponseEntity<?> chat(
         summary.put("lastName", user.getLastName());
         summary.put("role", user.getRole());
         return summary;
-    }
-
-    private Map<String, Object> assessment(String code, String name, int current, int required, String gap, String priority) {
-        return Map.of("code", code, "name", name, "current", current,
-                "required", required, "gap", gap, "priority", priority);
     }
 
     private ResponseEntity<Map<String, String>> unauthorized() {

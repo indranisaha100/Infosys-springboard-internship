@@ -11,4 +11,6 @@ public interface GeneratedSkillProgramRepository extends JpaRepository<Generated
 
     Optional<GeneratedSkillProgram> findFirstByEmployeeIdAndCompetencyIgnoreCaseAndStatusOrderByCreatedAtDesc(
             Long employeeId, String competency, String status);
+
+    List<GeneratedSkillProgram> findByEmployeeEmailIgnoreCaseAndStatus(String employeeEmail, String status);
 }

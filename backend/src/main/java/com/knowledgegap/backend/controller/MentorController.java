@@ -47,6 +47,13 @@ public class MentorController {
         private final FeedbackRepository feedbackRepository;
         private final MentorshipRequestRepository mentorshipRequestRepository;
 
+        @Autowired(required = false)
+        private com.knowledgegap.backend.service.MentorDashboardService dashboardService;
+        @Autowired(required = false)
+        private com.knowledgegap.backend.service.MentorAssignmentService mentorAssignmentService;
+        @Autowired(required = false)
+        private com.knowledgegap.backend.service.MentoringSessionService sessionService;
+
         public MentorController(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
                         AssessmentScoreRepository assessmentScoreRepository) {
                 this(userRepository, jwtTokenProvider, assessmentScoreRepository, null, null, null, null, null, null);
@@ -92,50 +99,8 @@ public class MentorController {
                                         .body(Map.of("message", "A valid mentor session is required."));
                 }
 
-                List<com.knowledgegap.backend.model.User> employees = userRepository.findByRole("ROLE_EMPLOYEE");
-                List<Map<String, Object>> mentees = employees.stream()
-                                .sorted(Comparator.comparing(
-                                                user -> safe(user.getFirstName()) + safe(user.getLastName())))
-                                .map(this::mentee)
-                                .toList();
-                int employeeCount = mentees.size();
-                return ResponseEntity.ok(Map.of(
-                                "stats", List.of(
-                                                stat("Total Mentees", employeeCount, "Live employee directory", "users",
-                                                                "blue"),
-                                                stat("Pending Assessments", employeeCount, "Review employee progress",
-                                                                "check", "amber"),
-                                                stat("Knowledge Gaps Identified", employeeCount,
-                                                                "Awaiting assessment data", "gap", "purple"),
-                                                stat("Active Learning Plans", 0, "No plans assigned yet", "book",
-                                                                "green")),
-                                "mentees", mentees,
-                                "gaps", List.of(
-                                                gap("Java Programming", 72, "bg-blue-500"),
-                                                gap("SQL and Database Management", 58, "bg-violet-500"),
-                                                gap("React Development", 46, "bg-cyan-500"),
-                                                gap("Cloud Computing", 38, "bg-amber-500"),
-                                                gap("Communication Skills", 29, "bg-emerald-500")),
-                                "recommendations", List.of(
-                                                resource("Building Production APIs with Spring Boot", "Java",
-                                                                "Intermediate", "6 hours", "code"),
-                                                resource("SQL Performance Tuning Essentials", "SQL", "Advanced",
-                                                                "4 hours", "database"),
-                                                resource("Modern React State Patterns", "React", "Intermediate",
-                                                                "3.5 hours", "layers")),
-                                "sessions", List.of(
-                                                session("Aarav Sharma", "Spring Boot architecture review",
-                                                                "Oct 28, 2026", "10:00 AM"),
-                                                session("Rohan Das", "React project check-in", "Oct 29, 2026",
-                                                                "2:30 PM"),
-                                                session("Priya Menon", "SQL learning plan", "Oct 31, 2026",
-                                                                "11:00 AM")),
-                                "activity", List.of(
-                                                activity("Employee directory synchronized with the backend.",
-                                                                "Just now", "check"),
-                                                activity(employeeCount + " employees are available for mentoring.",
-                                                                "Live", "users")),
-                                "assessments", assessmentSummaries()));
+                // Real data only: this mentor's mentees, their assessments, courses and sessions.
+                return ResponseEntity.ok(dashboardService.build(mentor.get()));
         }
 
         @GetMapping("/sections/{section}")
@@ -148,7 +113,11 @@ public class MentorController {
                 }
 
                 String normalized = section.toLowerCase(Locale.ROOT);
+                Set<String> menteeEmails = mentorAssignmentService == null ? null
+                                : mentorAssignmentService.menteeEmails(mentor.get().getEmail());
                 List<Map<String, Object>> employees = userRepository.findByRole("ROLE_EMPLOYEE").stream()
+                                .filter(user -> menteeEmails == null
+                                                || menteeEmails.contains(safe(user.getEmail()).toLowerCase(Locale.ROOT)))
                                 .sorted(Comparator.comparing(
                                                 user -> safe(user.getFirstName()) + safe(user.getLastName())))
                                 .map(this::employeeSummary)
@@ -159,15 +128,16 @@ public class MentorController {
                                         "Knowledge gap tracking is ready for employee assessment results.", "employees",
                                         employees));
                         case "assessments" -> ResponseEntity.ok(Map.of("section", "Employee Assessments", "message",
-                                        "Latest assessment scores submitted by employees.", "employees", employees,
-                                        "assessments", assessmentSummaries()));
+                                        "Latest assessment scores submitted by your mentees.", "employees", employees,
+                                        "assessments", assessmentSummaries().stream()
+                                                        .filter(row -> menteeEmails == null || menteeEmails.contains(
+                                                                        String.valueOf(row.get("email")).toLowerCase(Locale.ROOT)))
+                                                        .toList()));
                         case "recommendations" -> ResponseEntity.ok(mentorResources("Learning Recommendations"));
                         case "resources" -> ResponseEntity.ok(mentorResources("Shared Resources"));
                         case "programmes", "training-programmes" -> ResponseEntity.ok(mentorProgrammes());
                         case "feedback" -> ResponseEntity.ok(mentorFeedback());
-                        case "sessions" -> ResponseEntity.ok(Map.of("section", "Mentoring Sessions",
-                                        "message", "No mentoring sessions have been scheduled yet.", "employees",
-                                        employees));
+                        case "sessions" -> ResponseEntity.ok(mentorSessionsSection(mentor.get(), employees));
                         case "requests" -> ResponseEntity.ok(mentorRequests(mentor.get()));
                         case "notifications" -> ResponseEntity.ok(mentorNotifications(mentor.get()));
                         case "reports" -> ResponseEntity.ok(Map.of("section", "Reports", "message",
@@ -207,6 +177,21 @@ public class MentorController {
                                 .map(notification -> new EmployeeNotificationRead(mentor.get().getEmail(), notification.getId()))
                                 .toList());
                 return ResponseEntity.ok(Map.of("message", "Notifications marked as read."));
+        }
+
+        private Map<String, Object> mentorSessionsSection(com.knowledgegap.backend.model.User mentor,
+                        List<Map<String, Object>> employees) {
+                if (sessionService == null) {
+                        return Map.of("section", "Mentoring Sessions", "message",
+                                        "No mentoring sessions have been scheduled yet.", "employees", employees);
+                }
+                Map<String, com.knowledgegap.backend.model.User> byEmail = sessionService.usersByEmail();
+                List<Map<String, Object>> rows = sessionService.forMentor(mentor.getEmail()).stream()
+                                .map(session -> sessionService.view(session, byEmail)).toList();
+                return Map.of("section", "Mentoring Sessions", "message",
+                                rows.isEmpty() ? "No mentoring sessions have been scheduled yet."
+                                                : rows.size() + " session(s) scheduled.",
+                                "employees", employees, "sessions", rows);
         }
 
         private Map<String, Object> mentorNotifications(com.knowledgegap.backend.model.User mentor) {

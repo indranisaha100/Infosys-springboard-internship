@@ -33,6 +33,9 @@ public class HrManagementController {
     private final UserRepository users;
     private final JwtTokenProvider tokens;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.knowledgegap.backend.service.LearningProgressService learningProgress;
+
     public HrManagementController(CompetencyRepository competencies, LearningResourceRepository resources,
             LearningPathRepository paths, TrainingProgrammeRepository programmes, UserRepository users,
             JwtTokenProvider tokens, RoleRequirementRepository roleRequirements,
@@ -296,17 +299,38 @@ public class HrManagementController {
                 "inProgress", inProgress, "pending", records.size() - completed - inProgress));
     }
 
+    /**
+     * HR assigns a course. Status/progress sent by the client are ignored: a new assignment always
+     * starts PENDING at 0%, and only the employee (or an explicit HR correction below) moves it.
+     */
     @PostMapping("/learning-progress")
     public ResponseEntity<?> createEnrollment(@RequestHeader(value = "Authorization", required = false) String auth,
             @RequestBody LearningEnrollment enrollment) {
-        if (!authorized(auth)) return unauthorized();
-        if (enrollment.getEmployeeEmail() == null || enrollment.getEmployeeEmail().isBlank()
-                || enrollment.getLearningTitle() == null || enrollment.getLearningTitle().isBlank()) {
-            return bad("Employee email and learning title are required.");
+        Optional<User> hr = hrUser(auth);
+        if (hr.isEmpty()) return unauthorized();
+        try {
+            LearningEnrollment saved = learningProgress.assign(hr.get(),
+                    new com.knowledgegap.backend.service.LearningProgressService.AssignCommand(
+                            enrollment.getEmployeeEmail(), enrollment.getLearningTitle(), enrollment.getMentorEmail(),
+                            enrollment.getCompetency(), enrollment.getResourceId(), enrollment.getDueDate(),
+                            "HR_MANUAL"));
+            return ResponseEntity.status(HttpStatus.CREATED).body(learningProgress.toView(saved));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", String.valueOf(e.getReason())));
         }
-        enrollment.setId(null);
-        enrollment.setUpdatedAt(java.time.Instant.now());
-        return ResponseEntity.status(HttpStatus.CREATED).body(enrollments.save(enrollment));
+    }
+
+    /** HR correction: body { "progressPercent": 0-100 }. */
+    @PatchMapping("/learning-progress/{id}")
+    public ResponseEntity<?> correctProgress(@RequestHeader(value = "Authorization", required = false) String auth,
+            @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        if (!authorized(auth)) return unauthorized();
+        if (!(body.get("progressPercent") instanceof Number number)) return bad("progressPercent is required.");
+        try {
+            return ResponseEntity.ok(learningProgress.toView(learningProgress.hrSetProgress(id, number.intValue())));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", String.valueOf(e.getReason())));
+        }
     }
 
     @GetMapping("/feedback")
@@ -393,6 +417,18 @@ public class HrManagementController {
                 "enrollments", records.size(),
                 "completedEnrollments", records.stream().filter(record -> "COMPLETED".equalsIgnoreCase(record.getStatus())).count(),
                 "feedback", feedback.count()));
+    }
+
+    private Optional<User> hrUser(String auth) {
+        if (auth == null || !auth.startsWith("Bearer ")) return Optional.empty();
+        String token = auth.substring(7);
+        if (!tokens.validateToken(token)) return Optional.empty();
+        try {
+            return users.findByEmail(tokens.getEmailFromJWT(token))
+                    .filter(user -> "ROLE_HR".equals(user.getRole()) || "ROLE_ADMIN".equals(user.getRole()));
+        } catch (RuntimeException exception) {
+            return Optional.empty();
+        }
     }
 
     private boolean authorized(String auth) {
