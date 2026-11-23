@@ -140,7 +140,7 @@ input:focus {
     0.9rem Arial,
     sans-serif;
 }
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .shell {
     grid-template-columns: 1fr;
     gap: 48px;
@@ -735,7 +735,7 @@ button.workspace-header-profile {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 .workspace-sidebar button { font-family: inherit; }
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .workspace-header { gap: 10px; padding-inline: 16px; }
   .workspace-header h1 { font-size: 16px; }
   .workspace-header-actions { gap: 8px; }
@@ -755,4 +755,161 @@ button.workspace-header-profile {
 
 @media (max-width: 760px) {
   .form-panel { width: 100%; min-height: auto; border-left: 0; border-radius: 0; box-shadow: none; }
+}
+
+/* Shared small-screen sizing and navigation controls. */
+html,
+body,
+#root {
+  min-width: 320px;
+  width: 100%;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+form,
+input,
+select,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.workspace-menu-button {
+  display: none;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--forest-900);
+  cursor: pointer;
+  font: 700 22px/1 ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (max-width: 767px) {
+  .workspace-menu-button {
+    display: grid;
+  }
+
+  .workspace-header {
+    gap: 10px;
+    padding-inline: 12px;
+  }
+
+  .workspace-header h1 {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workspace-header-actions {
+    flex: 0 0 auto;
+  }
+
+  .workspace-menu-button:focus-visible {
+    outline: 2px solid var(--emerald-500);
+    outline-offset: 2px;
+  }
+
+  .auth-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-form,
+  .form-heading {
+    width: 100%;
+  }
+
+  .form-panel {
+    padding: 36px clamp(18px, 7vw, 40px);
+  }
+}
+
+@media (max-width: 420px) {
+  .workspace-header-profile strong {
+    display: none;
+  }
+
+  .workspace-header {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .form-panel {
+    padding-inline: 18px;
+  }
+
+  .auth-form {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 767px) {
+  .employee-sidebar,
+  .hr-sidebar,
+  .mentor-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 31;
+    width: min(290px, calc(100vw - 48px)) !important;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    padding: 22px 16px !important;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 180ms ease, visibility 180ms ease;
+  }
+
+  .employee-sidebar.is-open,
+  .hr-sidebar.is-open,
+  .mentor-sidebar.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .employee-sidebar > div:first-child > div,
+  .employee-sidebar > p,
+  .employee-sidebar nav button > span,
+  .hr-sidebar > div > span:last-child,
+  .hr-sidebar > p,
+  .hr-sidebar nav button > span,
+  .mentor-sidebar > p,
+  .mentor-sidebar nav button > span {
+    display: block;
+  }
+
+  .employee-sidebar nav,
+  .hr-sidebar nav,
+  .mentor-sidebar nav {
+    margin-top: 12px;
+  }
+
+  .employee-sidebar-backdrop,
+  .hr-sidebar-backdrop,
+  .mentor-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: 0;
+    background: rgb(7 30 24 / 55%);
+  }
+
+  nav[aria-label="Mobile HR workspace"] {
+    display: none;
+  }
 }

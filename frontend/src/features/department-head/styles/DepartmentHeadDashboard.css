@@ -792,7 +792,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .dh-layout {
     display: block;
   }
@@ -880,5 +880,81 @@
 
   .dh-panel {
     padding: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  .dh-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 31;
+    width: min(290px, calc(100vw - 48px));
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding: 22px 15px;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 180ms ease, visibility 180ms ease;
+  }
+
+  .dh-sidebar.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .dh-nav {
+    display: grid;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .dh-nav button {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .dh-sidebar-footer {
+    display: block;
+  }
+
+  .dh-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: 0;
+    background: rgb(7 30 24 / 55%);
+  }
+
+  .dh-main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .dh-hero {
+    min-height: 0;
+    padding: 20px;
+  }
+
+  .dh-hero p,
+  .dh-section-title p {
+    overflow-wrap: anywhere;
+  }
+
+  .dh-panel-foot {
+    flex-wrap: wrap;
+    gap: 18px 28px;
+  }
+
+  .dh-learning-numbers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dh-report-panel {
+    align-items: stretch;
+  }
+
+  .dh-primary-button {
+    white-space: normal;
   }
 }
