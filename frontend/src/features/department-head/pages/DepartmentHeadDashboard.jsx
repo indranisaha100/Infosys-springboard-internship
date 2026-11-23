@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { getDepartmentHeadDashboard } from "../services/departmentHeadApi";
 import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
+import NotificationInbox from "../../../shared/components/NotificationInbox";
+import NotificationComposer from "../../../shared/components/NotificationComposer";
 import "../styles/DepartmentHeadDashboard.css";
 
 const NAV_ITEMS = [
@@ -1130,14 +1132,30 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="UPDATES"
                 title="Notifications"
-                description="Department-specific notifications and acknowledgement status."
+                description="Send a message to an approved employee or mentor in your department."
               />
 
-              <section className="dh-panel">
-                <EmptyState>
-                  The current project does not expose a Department Head notification endpoint yet. No notification records are fabricated.
-                </EmptyState>
-              </section>
+              <div className="dh-two-column">
+                <NotificationComposer
+                  recipients={[
+                    ...(data?.employees || []).map((person) => ({
+                      ...person,
+                      name: [person.firstName, person.lastName].filter(Boolean).join(" "),
+                    })),
+                    ...(data?.mentors || []).map((person) => ({
+                      ...person,
+                      name: [person.firstName, person.lastName].filter(Boolean).join(" "),
+                    })),
+                  ]}
+                  type="DEPARTMENT_MESSAGE"
+                  metadata={{ department: data?.department?.name || "" }}
+                  heading="Message department member"
+                />
+                <section className="dh-panel">
+                  <p className="dh-muted-note">Recipients are limited to approved employees and mentors in your assigned department.</p>
+                </section>
+              </div>
+              <NotificationInbox roleLabel="Department workspace" />
             </>
           )}
 

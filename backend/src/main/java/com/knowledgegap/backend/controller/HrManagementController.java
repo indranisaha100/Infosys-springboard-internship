@@ -10,6 +10,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Comparator;
+import java.util.Set;
 import java.util.Base64;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.ContentDisposition;
@@ -331,7 +333,35 @@ public class HrManagementController {
     @GetMapping("/notifications")
     public ResponseEntity<?> notifications(@RequestHeader(value = "Authorization", required = false) String auth) {
         if (!authorized(auth)) return unauthorized();
-        return ResponseEntity.ok(notifications.findAllByOrderBySentAtDesc());
+        return ResponseEntity.ok(notifications.findAllByOrderBySentAtDesc().stream()
+                .filter(notification -> notification.getSenderRole() == null
+                        || "ROLE_HR".equals(notification.getSenderRole())
+                        || "ROLE_ADMIN".equals(notification.getSenderRole()))
+                .toList());
+    }
+
+    @GetMapping("/notification-recipients")
+    public ResponseEntity<?> notificationRecipients(
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (!authorized(auth)) return unauthorized();
+        return ResponseEntity.ok(users.findAll().stream()
+                .filter(user -> user.getStatus() == null || "APPROVED".equalsIgnoreCase(user.getStatus()))
+                .filter(user -> user.getRole() != null && Set.of("ROLE_EMPLOYEE", "ROLE_MENTOR", "ROLE_MANAGER",
+                        "ROLE_DEPARTMENT_HEAD", "ROLE_HR", "ROLE_ADMIN").contains(user.getRole()))
+                .sorted(Comparator.comparing(
+                        user -> ((user.getFirstName() == null ? "" : user.getFirstName()) + " "
+                                + (user.getLastName() == null ? "" : user.getLastName())).trim(),
+                        String.CASE_INSENSITIVE_ORDER))
+                .map(user -> {
+                    Map<String, Object> recipient = new java.util.LinkedHashMap<>();
+                    recipient.put("email", user.getEmail());
+                    recipient.put("name", ((user.getFirstName() == null ? "" : user.getFirstName()) + " "
+                            + (user.getLastName() == null ? "" : user.getLastName())).trim());
+                    recipient.put("role", user.getRole());
+                    recipient.put("department", user.getDepartment());
+                    return recipient;
+                })
+                .toList());
     }
 
     @PostMapping("/notifications")

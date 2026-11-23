@@ -10,6 +10,7 @@ const menuItems = [
   { id: "assessments", label: "Assessments" },
   { id: "alerts", label: "Critical Alerts" },
   { id: "reports", label: "Team Reports" },
+  { id: "notifications", label: "Notifications" },
 ];
 
 export default function ManagerSidebar({

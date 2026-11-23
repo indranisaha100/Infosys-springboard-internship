@@ -3,8 +3,10 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { request } from "../../../shared/services/api";
 import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
+import NotificationInbox from "../../../shared/components/NotificationInbox";
+import NotificationComposer from "../../../shared/components/NotificationComposer";
 
-const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Role Benchmarks"];
+const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Notifications", "Role Benchmarks"];
 
 const emerald = {
   primary: "#72CBA6",
@@ -179,6 +181,8 @@ export default function HRDashboardPage() {
   const [savingMentor, setSavingMentor] = useState(null);
   const [savingBenchmark, setSavingBenchmark] = useState(false);
   const [benchmarkForm, setBenchmarkForm] = useState({ roleName: "", competency: "", requiredProficiency: "" });
+  const [notificationRecipients, setNotificationRecipients] = useState([]);
+  const [notificationRecipientError, setNotificationRecipientError] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -215,6 +219,16 @@ export default function HRDashboardPage() {
   useEffect(() => {
     if (user && ["ROLE_ADMIN", "ROLE_HR"].includes(user.role)) loadWorkspace();
   }, [loadWorkspace, user]);
+
+  useEffect(() => {
+    if (activeSection !== "Notifications") return;
+    request("/hr/notification-recipients")
+      .then((result) => {
+        setNotificationRecipients(Array.isArray(result) ? result : []);
+        setNotificationRecipientError("");
+      })
+      .catch((loadError) => setNotificationRecipientError(displayError(loadError)));
+  }, [activeSection]);
 
   const filteredEmployees = employees.filter((employee) =>
     JSON.stringify(employee).toLowerCase().includes(search.toLowerCase()),
@@ -352,6 +366,22 @@ export default function HRDashboardPage() {
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="m-0 text-lg font-semibold text-[#0F5257]">Mentor directory</h2><p className="mt-1 text-xs text-slate-500">Maintain mentor expertise so the plan generator can make skill-based matches.</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search mentors…" className="h-10 rounded-xl border border-[#A3E4D7] bg-[#f8fcfa] px-3 text-xs outline-none focus:border-[#50C878]"/></div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">{filteredMentors.map((mentor) => <article key={mentor.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F8F5] text-sm font-bold text-[#0F5257]">{(mentor.name || mentor.email || "M").slice(0, 1).toUpperCase()}</span><div><strong className="text-sm">{mentor.name || mentor.email}</strong><p className="mt-1 text-xs text-slate-500">{mentor.email}</p></div></div><p className="mb-3 mt-3 text-xs text-slate-500">{mentor.department || "No department assigned"}</p><label className="block text-xs font-semibold text-slate-600">Expertise <span className="font-normal text-slate-400">(comma-separated skills)</span><input value={mentorExpertise[mentor.id] || ""} onChange={(event) => setMentorExpertise((current) => ({ ...current, [mentor.id]: event.target.value }))} placeholder="Java, SQL, React" className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-normal outline-none focus:border-[#50C878]"/></label><button onClick={() => updateMentorExpertise(mentor.id)} disabled={savingMentor === mentor.id} className="mt-3 rounded-lg bg-[#0F5257] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{savingMentor === mentor.id ? "Saving…" : "Save expertise"}</button></article>)}</div>
               {!filteredMentors.length && <p className="mt-5 rounded-xl bg-[#E8F8F5] p-8 text-center text-sm text-slate-500">No mentors matched your search.</p>}
+            </section>
+          ) : activeSection === "Notifications" ? (
+            <section className="space-y-6">
+              <div>
+                <h2 className="m-0 text-lg font-semibold text-[#0F5257]">Project notifications</h2>
+                <p className="mt-1 text-xs text-slate-500">Send a message to everyone or choose one approved account. Every recipient gets a separate read/history record.</p>
+              </div>
+              {notificationRecipientError && <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700" role="alert">Recipient list could not be loaded: {notificationRecipientError}</p>}
+              <NotificationComposer
+                recipients={notificationRecipients}
+                includeEveryone
+                type="HR_ANNOUNCEMENT"
+                metadata={{ source: "hr-dashboard" }}
+                heading="Create and send notification"
+              />
+              <NotificationInbox roleLabel="HR workspace" />
             </section>
           ) : (
             <section className="rounded-2xl border border-[#A3E4D7] bg-white p-5">

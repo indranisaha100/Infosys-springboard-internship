@@ -6,6 +6,8 @@ import { getManagerDashboard } from "../services/managerApi";
 
 import ManagerSidebar from "../components/ManagerSidebar";
 import ManagerTopbar from "../components/ManagerTopbar";
+import NotificationInbox from "../../../shared/components/NotificationInbox";
+import NotificationComposer from "../../../shared/components/NotificationComposer";
 
 import "../styles/ManagerDashboard.css";
 
@@ -71,6 +73,7 @@ export default function ManagerDashboard() {
   const [error, setError] = useState("");
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedMentorToNotify, setSelectedMentorToNotify] = useState("");
 
   const user = useMemo(() => {
     try {
@@ -265,6 +268,7 @@ export default function ManagerDashboard() {
           setActiveSection(section);
           setSearch("");
           setSelectedEmployee(null);
+          setSelectedMentorToNotify("");
         }}
       />
 
@@ -534,6 +538,24 @@ export default function ManagerDashboard() {
                       <span className="mentor-role">
                         {mentor.role.replace("ROLE_", "")}
                       </span>
+                      <button
+                        type="button"
+                        className="view-button"
+                        onClick={() => setSelectedMentorToNotify((current) =>
+                          current === mentor.email ? "" : mentor.email
+                        )}
+                      >
+                        Send message
+                      </button>
+                      {selectedMentorToNotify === mentor.email && (
+                        <NotificationComposer
+                          fixedRecipient={{ email: mentor.email, name: mentor.name }}
+                          type="MANAGER_MENTOR_MESSAGE"
+                          metadata={{ source: "manager-mentor-directory" }}
+                          heading="Message mentor"
+                          compact
+                        />
+                      )}
 
                     </div>
                   ))
@@ -840,6 +862,10 @@ export default function ManagerDashboard() {
             </section>
           )}
 
+          {activeSection === "notifications" && (
+            <NotificationInbox roleLabel="Manager workspace" />
+          )}
+
           <footer className="manager-footer">
             KGIP · Knowledge Gap Intelligence Platform
           </footer>
@@ -853,6 +879,8 @@ export default function ManagerDashboard() {
 }
 
 function CriticalAlerts({ alerts = [] }) {
+  const [composingId, setComposingId] = useState(null);
+
   if (!alerts.length) {
     return (
       <EmptyState message="No critical assessment gaps detected." />
@@ -884,6 +912,26 @@ function CriticalAlerts({ alerts = [] }) {
           <span className="status-badge critical">
             Critical
           </span>
+          <button
+            type="button"
+            className="view-button"
+            onClick={() => {
+              const alertId = `${item.email}-${item.topic}-${index}`;
+              setComposingId((current) => current === alertId ? null : alertId);
+            }}
+          >
+            Send message
+          </button>
+          {composingId === `${item.email}-${item.topic}-${index}` && (
+            <NotificationComposer
+              fixedRecipient={{ email: item.email, name: item.employee }}
+              type="CRITICAL_GAP"
+              metadata={{ topic: item.topic, score: item.score, submittedAt: item.submittedAt }}
+              heading="Message employee about critical gap"
+              initialTitle={`Support for ${item.topic}`}
+              compact
+            />
+          )}
 
         </div>
       ))}

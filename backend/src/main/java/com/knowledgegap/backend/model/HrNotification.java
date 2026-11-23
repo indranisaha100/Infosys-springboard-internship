@@ -26,6 +26,18 @@ public class HrNotification {
 
     private String recipientEmail;
 
+    private String recipientRole;
+
+    private String senderEmail;
+
+    private String senderRole;
+
+    @Column(length = 80)
+    private String notificationType;
+
+    @Column(length = 4000)
+    private String metadataJson;
+
     @Column(nullable = false)
     private Instant sentAt = Instant.now();
 }

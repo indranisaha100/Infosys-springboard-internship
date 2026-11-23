@@ -68,6 +68,17 @@ public class DepartmentHeadDashboardService {
         List<User> employees = departmentUsers.stream()
                 .filter(user -> "ROLE_EMPLOYEE".equals(user.getRole()))
                 .toList();
+        List<Map<String, Object>> mentors = departmentUsers.stream()
+                .filter(user -> "ROLE_MENTOR".equals(user.getRole()))
+                .map(user -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("firstName", user.getFirstName());
+                    row.put("lastName", user.getLastName());
+                    row.put("email", user.getEmail());
+                    row.put("role", user.getRole());
+                    return row;
+                })
+                .toList();
 
         Set<String> employeeEmails = employees.stream()
                 .map(User::getEmail)
@@ -499,6 +510,7 @@ public class DepartmentHeadDashboardService {
         response.put("departmentHead", head);
         response.put("summary", summary);
         response.put("employees", employeeRows);
+        response.put("mentors", mentors);
         response.put("skills", skills);
         response.put("assessments", assessmentRows);
         response.put("heatmap", heatmap);

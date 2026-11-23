@@ -6,6 +6,7 @@ import SkillAssessment from "../../skill-assessment/components/SkillAssessment";
 import { loadResult, scoreByTopic } from "../../skill-assessment/data/skillAssessmentData";
 import MessagesPanel from "../../messaging/components/MessagesPanel";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
+import NotificationInbox from "../../../shared/components/NotificationInbox";
 
 const navigation = [
   ["dashboard", "Dashboard"], ["profile", "My Profile"], ["assessment", "Skill Assessment"],
@@ -397,7 +398,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return undefined;
     let active = true;
-    const refreshNotificationCount = () => request("/employee/notifications/unread-count")
+    const refreshNotificationCount = () => request("/notifications/unread-count")
       .then((result) => { if (active) setNotificationCount(Number.isInteger(result.count) ? result.count : 0); })
       .catch(() => { if (active) setNotificationCount(0); });
     refreshNotificationCount();
@@ -413,6 +414,11 @@ export default function DashboardPage() {
     }
     if (label === "Skill Assessment") {
       setAssessmentResult((current) => current?.scores?.length ? current : loadResult());
+      setSectionData(null);
+      setSectionLoading(false);
+      return;
+    }
+    if (label === "Notifications") {
       setSectionData(null);
       setSectionLoading(false);
       return;
@@ -487,7 +493,6 @@ export default function DashboardPage() {
       "Training Programmes": "programmes",
       Feedback: "feedback",
       Learning: "learning",
-      Notifications: "notifications",
       Reports: "reports",
       "My Profile": "profile",
       Settings: "settings",
@@ -504,10 +509,6 @@ export default function DashboardPage() {
     try {
       const data = await request(`/employee/sections/${sectionKeys[label]}`);
       setSectionData(data);
-      if (label === "Notifications") {
-        await request("/employee/notifications/read", { method: "POST" });
-        setNotificationCount(0);
-      }
     } catch (error) {
       setSectionData({ message: error.message });
     } finally {
@@ -575,7 +576,7 @@ export default function DashboardPage() {
       <section className="relative min-w-0 flex-1">
         <DashboardHeader title="Employee Dashboard" name={`${firstName} ${user.lastName || ""}`} initials={initials} onProfileClick={() => selectSection("My Profile")} onLogout={signOut} />
         {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
-        {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gap" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentors" ? <MentorsPage mentors={sectionData?.mentors || []} loading={sectionLoading} error={sectionData?.error} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+        {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gap" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentors" ? <MentorsPage mentors={sectionData?.mentors || []} loading={sectionLoading} error={sectionData?.error} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Notifications" ? <NotificationInbox roleLabel="Employee workspace" onUnreadCountChange={setNotificationCount} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
           <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
         </div>  : activeItem === "Messages / Chatbox" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4"><MessagesPanel /></div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
