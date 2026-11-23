@@ -365,6 +365,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [user] = useState(() => JSON.parse(localStorage.getItem("kgipUser") || "null"));
   const [activeItem, setActiveItem] = useState("Dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sectionData, setSectionData] = useState(null);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState(loadResult);
@@ -582,7 +583,10 @@ export default function DashboardPage() {
 
   return (
     <main className="flex min-h-screen bg-slate-50 font-sans text-blue-950">
-      <aside className="workspace-sidebar flex w-60 shrink-0 flex-col bg-[#172956] p-5 text-blue-50 max-[650px]:w-16 max-[650px]:px-2">
+      <aside
+        id="workspace-navigation"
+        className={`workspace-sidebar employee-sidebar flex w-60 shrink-0 flex-col bg-[#172956] p-5 text-blue-50${sidebarOpen ? " is-open" : ""}`}
+      >
         <div className="flex items-center gap-2 px-2 max-[650px]:justify-center max-[650px]:px-0">
           <SkillTrackLogo />
           <div className="max-[650px]:hidden"><strong className="block text-[19px] font-bold tracking-tight text-white">SkillTrack</strong><small className="block text-[10px] font-medium text-[#c9e7d6]">Employee workspace</small></div>
@@ -591,17 +595,44 @@ export default function DashboardPage() {
         <nav className="grid gap-1" aria-label="Employee workspace">
           {navigation.map(([icon, label]) => {
             const locked = label === "Learning Recommendations" && !assessmentResult;
-            return <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#208967] text-white" : "text-blue-200 hover:bg-[#208967]"} disabled:cursor-not-allowed disabled:opacity-50`} key={label} onClick={() => selectSection(label)} disabled={locked} title={locked ? "Complete the skill assessment to unlock recommendations" : undefined} aria-disabled={locked}>
-              <SidebarIcon label={label} /><span className="max-[650px]:hidden">{label}</span>
-              {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
-              {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
-            </button>;
+            return (
+              <button
+                className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#208967] text-white" : "text-blue-200 hover:bg-[#208967]"} disabled:cursor-not-allowed disabled:opacity-50`}
+                key={label}
+                onClick={() => { selectSection(label); setSidebarOpen(false); }}
+                disabled={locked}
+                title={locked ? "Complete the skill assessment to unlock recommendations" : undefined}
+                aria-disabled={locked}
+              >
+                <SidebarIcon label={label} />
+                <span className="max-[650px]:hidden">{label}</span>
+                {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
+                {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
+              </button>
+            );
           })}
         </nav>
       </aside>
 
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="employee-sidebar-backdrop"
+          aria-label="Close navigation menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <section className="relative min-w-0 flex-1">
-        <DashboardHeader title="Employee Dashboard" name={`${firstName} ${user.lastName || ""}`} initials={initials} onProfileClick={() => selectSection("My Profile")} onLogout={signOut} />
+        <DashboardHeader
+          title="Employee Dashboard"
+          name={`${firstName} ${user.lastName || ""}`}
+          initials={initials}
+          onProfileClick={() => selectSection("My Profile")}
+          onLogout={signOut}
+          onMenuClick={() => setSidebarOpen((open) => !open)}
+          menuExpanded={sidebarOpen}
+        />
         {assessmentLoadError && <p className="mx-auto mt-4 max-w-[1100px] px-8 text-xs text-rose-700 max-[650px]:px-4" role="alert">{assessmentLoadError}</p>}
         {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gap" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentors" ? <MentorsPage mentors={sectionData?.mentors || []} loading={sectionLoading} error={sectionData?.error} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Notifications" ? <NotificationInbox roleLabel="Employee workspace" onUnreadCountChange={setNotificationCount} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>

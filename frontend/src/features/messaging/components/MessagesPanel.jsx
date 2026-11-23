@@ -270,7 +270,7 @@ export default function MessagesPanel() {
   const empty = "px-4 py-2 text-xs text-slate-500";
 
   return (
-    <div className="grid h-[75vh] overflow-hidden rounded-xl border border-slate-200 bg-white md:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="grid h-[75vh] min-h-[420px] max-h-[680px] min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white md:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col border-b border-slate-200 md:border-b-0 md:border-r">
         <div className="p-3">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts and chats..."

@@ -68,6 +68,7 @@ export default function ManagerDashboard() {
 
   const [data, setData] = useState(null);
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -264,17 +265,33 @@ export default function ManagerDashboard() {
 
       <ManagerSidebar
         activeSection={activeSection}
+        isOpen={sidebarOpen}
         onSectionChange={(section) => {
           setActiveSection(section);
+          setSidebarOpen(false);
           setSearch("");
           setSelectedEmployee(null);
           setSelectedMentorToNotify("");
         }}
       />
 
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="manager-sidebar-backdrop"
+          aria-label="Close navigation menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <main className="manager-main">
 
-        <ManagerTopbar manager={manager} onLogout={logout} />
+        <ManagerTopbar
+          manager={manager}
+          onLogout={logout}
+          onMenuClick={() => setSidebarOpen((open) => !open)}
+          menuExpanded={sidebarOpen}
+        />
 
         <section className="manager-content">
 

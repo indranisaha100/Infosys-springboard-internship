@@ -1034,3 +1034,88 @@
     flex-wrap: wrap;
   }
 }
+
+@media (max-width: 767px) {
+  .manager-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 31;
+    width: min(290px, calc(100vw - 48px));
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding: 22px 16px;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 180ms ease, visibility 180ms ease;
+  }
+
+  .manager-sidebar.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .manager-sidebar .manager-brand div,
+  .manager-sidebar .manager-nav-title,
+  .manager-sidebar .manager-nav button:not(.active) {
+    display: block;
+  }
+
+  .manager-sidebar .manager-nav button {
+    justify-content: flex-start;
+    font-size: 14px;
+  }
+
+  .manager-sidebar .manager-nav button span {
+    font-size: 17px;
+  }
+
+  .manager-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: 0;
+    background: rgb(7 30 24 / 55%);
+  }
+
+  .manager-content {
+    width: 100%;
+    padding: 18px 14px;
+  }
+
+  .manager-welcome {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .welcome-icon {
+    flex: 0 0 auto;
+    font-size: 38px;
+  }
+
+  .manager-panel,
+  .manager-stat-card {
+    min-width: 0;
+  }
+
+  .manager-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .manager-welcome {
+    padding: 18px;
+  }
+
+  .manager-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-panel-heading {
+    gap: 12px;
+  }
+
+  .manager-panel-heading input {
+    width: 100%;
+  }
+}

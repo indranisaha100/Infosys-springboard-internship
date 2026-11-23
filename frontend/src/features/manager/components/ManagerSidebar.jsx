@@ -16,9 +16,13 @@ const menuItems = [
 export default function ManagerSidebar({
   activeSection,
   onSectionChange,
+  isOpen = false,
 }) {
   return (
-    <aside className="manager-sidebar workspace-sidebar">
+    <aside
+      id="workspace-navigation"
+      className={`manager-sidebar workspace-sidebar${isOpen ? " is-open" : ""}`}
+    >
 
       <div className="manager-brand">
         <span aria-hidden="true">

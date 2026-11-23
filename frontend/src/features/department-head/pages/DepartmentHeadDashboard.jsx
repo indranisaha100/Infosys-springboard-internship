@@ -103,6 +103,7 @@ export default function DepartmentHeadDashboard() {
 
   const [data, setData] = useState(null);
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -283,7 +284,10 @@ export default function DepartmentHeadDashboard() {
 
   return (
     <div className="dh-layout">
-      <aside className="dh-sidebar workspace-sidebar">
+      <aside
+        id="workspace-navigation"
+        className={`dh-sidebar workspace-sidebar${sidebarOpen ? " is-open" : ""}`}
+      >
         <div className="dh-brand">
           <span className="dh-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -310,6 +314,7 @@ export default function DepartmentHeadDashboard() {
               }
               onClick={() => {
                 setActiveSection(item.id);
+                setSidebarOpen(false);
                 setSearch("");
               }}
               type="button"
@@ -328,12 +333,23 @@ export default function DepartmentHeadDashboard() {
         </div>
       </aside>
 
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="dh-sidebar-backdrop"
+          aria-label="Close navigation menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <main className="dh-main">
         <DashboardHeader
           title="Department Dashboard"
           name={departmentHeadName}
           initials={departmentHeadInitials}
           onLogout={logout}
+          onMenuClick={() => setSidebarOpen((open) => !open)}
+          menuExpanded={sidebarOpen}
         />
 
         <div className="dh-content">

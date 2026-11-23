@@ -198,6 +198,7 @@ export default function MentorDashboardPage() {
   const user = JSON.parse(localStorage.getItem("kgipUser") || "null");
   const [data, setData] = useState(emptyData);
   const [activeItem, setActiveItem] = useState("Dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
   const [message, setMessage] = useState("");
@@ -283,19 +284,31 @@ export default function MentorDashboardPage() {
   if (user.role !== "ROLE_MENTOR") return <Navigate to="/dashboard" replace />;
 
   return <main className="min-h-screen bg-[#f7f9fc] font-sans text-[#0b1d35]">
-    <aside className="workspace-sidebar fixed inset-y-0 left-0 z-20 flex w-64 flex-col overflow-y-auto bg-[#0b1d35] px-4 py-6 max-lg:w-[76px] max-lg:px-3 max-md:hidden">
+    <aside
+      id="workspace-navigation"
+      className={`workspace-sidebar mentor-sidebar fixed inset-y-0 left-0 z-20 flex w-64 flex-col overflow-y-auto bg-[#0b1d35] px-4 py-6 max-lg:w-[76px] max-lg:px-3${sidebarOpen ? " is-open" : ""}`}
+    >
       <Logo />
       <p className="mb-3 mt-10 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-blue-300 max-lg:hidden">Mentor workspace</p>
       <nav className="space-y-1" aria-label="Mentor workspace">
-        {navigation.map(([, label]) => <button key={label} onClick={() => setActiveItem(label)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeItem === label ? "bg-blue-600 font-semibold text-white shadow-lg shadow-blue-950/20" : "text-blue-200 hover:bg-white/10 hover:text-white"}`}><SidebarIcon label={label} /><span className="max-lg:hidden">{label}</span></button>)}
+        {navigation.map(([, label]) => <button key={label} onClick={() => { setActiveItem(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeItem === label ? "bg-blue-600 font-semibold text-white shadow-lg shadow-blue-950/20" : "text-blue-200 hover:bg-white/10 hover:text-white"}`}><SidebarIcon label={label} /><span className="max-lg:hidden">{label}</span></button>)}
       </nav>
     </aside>
 
-    <section className="ml-64 min-h-screen max-lg:ml-[76px] max-md:ml-0">
-      <DashboardHeader title="Mentor Dashboard" name={`${firstName} ${user?.lastName || ""}`} initials={initials} onLogout={signOut} />
+    {sidebarOpen && <button type="button" className="mentor-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setSidebarOpen(false)} />}
 
-      <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-8 max-md:px-4 max-md:pb-24">
-        {message && <div role="status" className="fixed right-6 top-24 z-30 rounded-xl bg-[#0b1d35] px-4 py-3 text-xs font-medium text-white shadow-xl">{message}</div>}
+    <section className="ml-64 min-h-screen max-lg:ml-[76px] max-md:ml-0">
+      <DashboardHeader
+        title="Mentor Dashboard"
+        name={`${firstName} ${user?.lastName || ""}`}
+        initials={initials}
+        onLogout={signOut}
+        onMenuClick={() => setSidebarOpen((open) => !open)}
+        menuExpanded={sidebarOpen}
+      />
+
+      <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-8 max-md:px-4">
+        {message && <div role="status" className="fixed left-4 right-4 top-24 z-30 rounded-xl bg-[#0b1d35] px-4 py-3 text-xs font-medium text-white shadow-xl sm:left-auto sm:max-w-sm">{message}</div>}
         {dataError && <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><span>{authError ? "Your mentor session is missing or expired. Sign in again to load live data." : `Live mentor data could not be loaded: ${dataError}`}</span><button className="font-semibold underline" onClick={() => authError ? signOut() : window.location.reload()}>{authError ? "Sign in" : "Retry"}</button></div>}
         {(activeItem === "Messages" || activeItem === "Messages / Chatbox")
           ? <MessagesPanel />
@@ -399,19 +412,6 @@ export default function MentorDashboardPage() {
           </section>
         </>}
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden" aria-label="Mobile mentor workspace">
-        {[["grid", "Dashboard"], ["users", "My Team"], ["bell", "Notifications"]].map(([icon, label]) => (
-          <button
-            key={label}
-            onClick={() => setActiveItem(label)}
-            className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] font-medium ${activeItem === label ? "text-blue-600" : "text-slate-500"}`}
-          >
-            <Icon name={icon} className="h-[18px] w-[18px]" />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
-
     </section>
 
     {selectedMentee && <MenteeDetailPanel email={selectedMentee} onClose={() => setSelectedMentee("")}
