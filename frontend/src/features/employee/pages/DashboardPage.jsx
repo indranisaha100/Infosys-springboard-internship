@@ -63,6 +63,9 @@ function SectionPage({ activeItem, data, loading }) {
     "My Profile": "Manage your employee profile information.",
     Settings: "Manage your workspace preferences.",
   };
+  const isMyLearningResponse = activeItem === "My Learning"
+    && data?.section === "My Learning"
+    && Array.isArray(data?.items);
   return (
     <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
       <div className="mb-5">
@@ -73,10 +76,10 @@ function SectionPage({ activeItem, data, loading }) {
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         {loading ? <p className="text-sm text-slate-500">Loading from the employee workspace...</p> : (
           <>
-            <p className="text-sm text-blue-950">{data?.message || "Connected to the employee workspace."}</p>
+            {!isMyLearningResponse && <p className="text-sm text-blue-950">{data?.message || "Connected to the employee workspace."}</p>}
             {data?.nextAction && <div className="mt-5 rounded-lg bg-blue-50 p-4 text-xs text-blue-800"><strong>Next action</strong><p className="mt-1">{data.nextAction}</p></div>}
             {data?.user && <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Name</strong><p className="mt-1 text-slate-600">{data.user.firstName} {data.user.lastName || ""}</p></div><div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Email</strong><p className="mt-1 text-slate-600">{data.user.email}</p></div></div>}
-            {data?.items && <div className="mt-5 grid gap-3 sm:grid-cols-2">{data.items.map((item, index) => {
+            {data?.items && !isMyLearningResponse && <div className="mt-5 grid gap-3 sm:grid-cols-2">{data.items.map((item, index) => {
               const resource = typeof item === "string" ? null : item;
               return <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-blue-900" key={resource?.id || item || index}>
                 <span>{resource ? `${resource.title} · ${resource.category}` : item}</span>
@@ -92,7 +95,8 @@ function SectionPage({ activeItem, data, loading }) {
                 {enrollment.mentorEmail && <p className="mb-0 mt-1 text-slate-500">Matched mentor: {enrollment.mentorEmail}</p>}
               </article>)}</div>
             </section>}
-            {!data?.items && !data?.user && !data?.nextAction && <div className="mt-5 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">This workspace page is connected and ready for your employee data.</div>}
+            {isMyLearningResponse && !data?.enrollments?.length && <p className="mt-5 text-sm text-slate-500">No learning plans have been assigned yet.</p>}
+            {!isMyLearningResponse && !data?.items && !data?.user && !data?.nextAction && <div className="mt-5 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">This workspace page is connected and ready for your employee data.</div>}
           </>
         )}
       </div>
