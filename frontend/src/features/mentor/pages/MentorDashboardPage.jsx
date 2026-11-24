@@ -10,6 +10,7 @@ import MentorLearningProgress from "../components/MentorLearningProgress";
 import MenteeDetailPanel from "../components/MenteeDetailPanel";
 import AssignCourseDialog from "../components/AssignCourseDialog";
 import { formatDateTime, relativeTime } from "../../../shared/utils/sessions";
+import { clampPercent, progressColor } from "../utils/progressColors";
 
 const navigation = [
   ["grid", "Dashboard"],
@@ -17,7 +18,6 @@ const navigation = [
   ["gap", "Team Skill Gap Analysis"],
   ["chart", "Team Skill Gap Heatmap"],
   ["check", "Employee Assessments"],
-  ["sparkle", "Training Recommendations"],
   ["book", "Learning Progress"],
   ["calendar", "Mentorship Management"],
   ["users", "Mentorship Requests"],
@@ -34,7 +34,6 @@ const emptyData = {
   heatmapColumns: [],
   heatmap: [],
   learningProgress: [],
-  recommendations: [],
   sessions: [],
   activity: [],
   assessments: [],
@@ -51,7 +50,6 @@ function normalizeDashboardData(result) {
     "heatmap",
     "heatmapColumns",
     "learningProgress",
-    "recommendations",
     "sessions",
     "activity",
     "assessments",
@@ -102,13 +100,30 @@ function SectionHeading({ title, action, onAction }) {
   return <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="m-0 text-lg font-semibold text-[#0b1d35]">{title}</h2><p className="mt-1 text-xs text-slate-500">Keep your mentoring work moving forward.</p></div>{action && <button className="text-xs font-semibold text-blue-600 hover:text-blue-800" onClick={onAction}>{action} <span aria-hidden="true">→</span></button>}</div>;
 }
 
+function TeamGapBars({ gaps }) {
+  return <div className="space-y-5">{gaps.map((gap) => {
+    const current = clampPercent(gap.value);
+    const target = clampPercent(gap.target);
+    const deficit = clampPercent(gap.gap);
+    return <div key={gap.name}>
+      <div className="mb-2 flex justify-between text-xs"><span className="font-medium text-slate-700">{gap.name}</span><strong>{current}% current</strong></div>
+      <div className="relative h-2 rounded-full bg-slate-100" role="img"
+        aria-label={`${gap.name}: team average assessment score ${current}%, target ${target}%, gap ${deficit} percentage points`}>
+        <div className={`h-full rounded-full ${progressColor(current)}`} style={{ width: `${current}%` }} />
+        <span className="absolute -top-1 h-4 w-0.5 -translate-x-1/2 bg-slate-600" style={{ left: `${target}%` }} />
+      </div>
+      <p className="mb-0 mt-1 text-right text-[10px] text-slate-500">
+        {target}% target{deficit ? ` · ${deficit} pp gap` : " · On target"}
+      </p>
+    </div>;
+  })}</div>;
+}
+
 const sectionEndpoints = {
   "My Team": "mentees",
   "Team Skill Gap Analysis": "gaps",
   "Team Skill Gap Heatmap": "gaps",
   "Employee Assessments": "assessments",
-  "Training Recommendations": "recommendations",
-  "Learning Recommendations": "recommendations",
   "Mentorship Requests": "requests",
   "Messages / Chatbox": "sessions",
 };
@@ -130,27 +145,13 @@ function SectionWorkspace({ activeItem, data, dashboardData, loading, error, sea
           Could not load this section: {error}
         </div>
       ) : activeItem === "Team Skill Gap Analysis" ? (
-        <div className="space-y-5">
-          {dashboardData.gaps.map((gap) => <div key={gap.name}>
-            <div className="mb-2 flex justify-between text-xs"><span className="font-medium text-slate-700">{gap.name}</span><strong>{gap.value}%</strong></div>
-            <div className="h-2 rounded-full bg-slate-100"><div className={`h-full rounded-full ${gap.color}`} style={{ width: `${gap.value}%` }} /></div>
-          </div>)}
-        </div>
+        <TeamGapBars gaps={dashboardData.gaps} />
       ) : activeItem === "Team Skill Gap Heatmap" ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left text-xs">
             <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{dashboardData.heatmapColumns.map((column) => <th key={column.label + column.name} title={column.name} className="px-3 py-3 text-center font-semibold">{column.label}</th>)}</tr></thead>
             <tbody>{dashboardData.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value == null ? "bg-slate-100 text-slate-400" : value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value ?? "–"}</span></td>)}</tr>)}</tbody>
           </table>
-        </div>
-      ) : activeItem === "Training Recommendations" ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {dashboardData.recommendations.map((resource) => <article key={resource.title} className="rounded-xl border border-slate-200 p-4">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-50 text-violet-600"><Icon name={resource.icon} /></span>
-            <p className="mb-1 mt-4 text-[10px] font-bold uppercase tracking-wider text-violet-600">{resource.category}</p>
-            <h3 className="m-0 text-sm font-bold text-[#0b1d35]">{resource.title}</h3>
-            <p className="mt-2 text-xs text-slate-500">{resource.difficulty} · {resource.duration}</p>
-          </article>)}
         </div>
       ) : activeItem === "Learning Progress" ? (
         <div className="grid gap-3 sm:grid-cols-3">
@@ -209,7 +210,7 @@ export default function MentorDashboardPage() {
   const [sectionError, setSectionError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedMentee, setSelectedMentee] = useState("");
-  const [assignDialog, setAssignDialog] = useState(null); // { resource, email }
+  const [assignDialog, setAssignDialog] = useState(null); // { email }
   const [sessionPreselect, setSessionPreselect] = useState("");
 
   useEffect(() => {
@@ -315,7 +316,7 @@ export default function MentorDashboardPage() {
           : activeItem === "Notifications"
             ? <NotificationInbox roleLabel="Mentor workspace" />
             : activeItem === "Learning Progress"
-              ? <MentorLearningProgress key={reloadKey} onAssign={(email) => setAssignDialog({ resource: null, email: email || "" })} />
+              ? <MentorLearningProgress key={reloadKey} onAssign={(email) => setAssignDialog({ email: email || "" })} />
               : activeItem === "Mentorship Management"
                 ? <MentorSessionsPage key={sessionPreselect} mentees={data.mentees} preselectEmail={sessionPreselect} onChanged={() => setReloadKey((key) => key + 1)} />
                 : activeItem !== "Dashboard"
@@ -325,7 +326,7 @@ export default function MentorDashboardPage() {
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-blue-200">{new Date().toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
               <h2 className="m-0 text-3xl font-bold tracking-tight">Welcome back, {firstName}!</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Help your mentees grow by identifying skill gaps and recommending personalized learning paths.</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Support your mentees by identifying skill gaps, tracking learning progress, and scheduling mentoring sessions.</p>
             </div>
           </section>
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{data.stats.map((stat) => <StatCard key={stat.label} stat={stat} />)}</section>
@@ -346,7 +347,7 @@ export default function MentorDashboardPage() {
                 <tbody>{mentees.map((mentee) => <tr key={mentee.email} className="border-b border-slate-50 last:border-0">
                   <td className="px-3 py-4"><div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[10px] font-bold text-blue-600">{mentee.initials}</span><strong>{mentee.name}</strong></div></td>
                   <td className="px-3 py-4 text-slate-500">{mentee.department}</td><td className="px-3 py-4 font-medium text-blue-900">{mentee.skill}</td><td className="px-3 py-4 text-slate-500">{mentee.gap}</td>
-                  <td className="px-3 py-4"><div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-500" style={{ width: `${mentee.progress}%` }} /></div><span className="text-[10px] font-semibold">{mentee.progress}%</span></div></td>
+                  <td className="px-3 py-4"><div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-slate-100"><div className={`h-full rounded-full ${progressColor(mentee.progress)}`} style={{ width: `${clampPercent(mentee.progress)}%` }} /></div><span className="text-[10px] font-semibold">{clampPercent(mentee.progress)}%</span></div></td>
                   <td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${mentee.status === "Completed" ? "bg-emerald-50 text-emerald-700" : mentee.status === "Needs Attention" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{mentee.status}</span></td>
                   <td className="px-3 py-4"><button className="font-semibold text-blue-600 hover:text-blue-800" onClick={() => setSelectedMentee(mentee.email)}>View</button></td>
                 </tr>)}</tbody>
@@ -357,10 +358,7 @@ export default function MentorDashboardPage() {
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeading title="Team skill gap analysis" />
             {data.gaps.length === 0 && <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">Gaps appear after your mentees submit a skill assessment.</p>}
-            <div className="space-y-5">{data.gaps.map((gap) => <div key={gap.name}>
-              <div className="mb-2 flex justify-between text-xs"><span className="font-medium text-slate-600">{gap.name}</span><strong className="text-[#0b1d35]">{gap.value}%</strong></div>
-              <div className="h-2 rounded-full bg-slate-100"><div className={`h-full rounded-full ${gap.color}`} style={{ width: `${gap.value}%` }} /></div>
-            </div>)}</div>
+            <TeamGapBars gaps={data.gaps} />
           </section>
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -369,20 +367,6 @@ export default function MentorDashboardPage() {
               <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Skill</th>{data.heatmapColumns.map((column) => <th key={`${column.label}-${column.name}`} title={column.name} className="px-3 py-3 text-center font-semibold">{column.label}</th>)}</tr></thead>
               <tbody>{data.heatmap.map((row) => <tr key={row.skill} className="border-b border-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{row.skill}</td>{row.values.map((value, index) => <td key={`${row.skill}-${index}`} className="px-2 py-3 text-center"><span className={`inline-block h-8 w-8 rounded-lg text-[10px] font-semibold ${value == null ? "bg-slate-100 text-slate-400" : value >= 70 ? "bg-emerald-100 text-emerald-700" : value >= 50 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>{value ?? "–"}</span></td>)}</tr>)}</tbody>
             </table></div>
-          </section>
-
-          <section className="mt-8">
-            <SectionHeading title="Learning recommendations" action="Manage recommendations" onAction={() => setActiveItem("Learning Recommendations")} />
-            <div className="grid gap-4 md:grid-cols-3">
-              {data.recommendations.length === 0 && <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm md:col-span-3">Recommendations are matched to your mentees' gaps from HR's published resources.</p>}
-              {data.recommendations.map((resource) => <article key={resource.id || resource.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-50 text-violet-600"><Icon name={resource.icon} /></span>
-                <p className="mb-1 mt-4 text-[10px] font-bold uppercase tracking-wider text-violet-600">{resource.category}</p>
-                <h3 className="m-0 min-h-12 text-sm font-bold leading-5 text-[#0b1d35]">{resource.title}</h3>
-                <div className="mt-4 flex gap-2 text-[10px] text-slate-500"><span className="rounded bg-slate-100 px-2 py-1">{resource.difficulty}</span><span className="rounded bg-slate-100 px-2 py-1">{resource.duration}</span></div>
-                <button className="mt-5 w-full rounded-lg border border-blue-200 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50" onClick={() => setAssignDialog({ resource, email: "" })}>Assign Resource</button>
-              </article>)}
-            </div>
           </section>
 
           <section className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -416,8 +400,8 @@ export default function MentorDashboardPage() {
 
     {selectedMentee && <MenteeDetailPanel email={selectedMentee} onClose={() => setSelectedMentee("")}
       onSchedule={(email) => { setSelectedMentee(""); setSessionPreselect(email); setActiveItem("Mentorship Management"); }}
-      onAssign={(email) => { setSelectedMentee(""); setAssignDialog({ resource: null, email }); }} />}
-    {assignDialog && <AssignCourseDialog mentees={data.mentees} resource={assignDialog.resource} defaultEmail={assignDialog.email}
+      onAssign={(email) => { setSelectedMentee(""); setAssignDialog({ email }); }} />}
+    {assignDialog && <AssignCourseDialog mentees={data.mentees} defaultEmail={assignDialog.email}
       onClose={() => setAssignDialog(null)} onDone={(text) => { setAssignDialog(null); showMessage(text); setReloadKey((key) => key + 1); }} />}
   </main>;
 }

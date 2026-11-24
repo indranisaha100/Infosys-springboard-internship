@@ -1,9 +1,9 @@
 /* Every class starts with sa- so it cannot change the rest of the dashboard.
    Change the colors here to match the dashboard theme. */
 .sa-root {
-  --sa-primary: #2f5fd0;
-  --sa-primary-dark: #2550b4;
-  --sa-primary-soft: #eaf0fd;
+  --sa-primary: #176b50;
+  --sa-primary-dark: #145a42;
+  --sa-primary-soft: #e5f3eb;
   --sa-text: #14213d;
   --sa-muted: #6b7a93;
   --sa-faint: #9aa7bb;

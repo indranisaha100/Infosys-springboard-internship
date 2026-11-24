@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { request } from "../../../shared/services/api";
 import { relativeTime } from "../../../shared/utils/sessions";
+import { clampPercent, progressColor } from "../utils/progressColors";
 
 const LABEL = { PENDING: "Not started", IN_PROGRESS: "In progress", COMPLETED: "Completed" };
-const STYLE = { PENDING: "bg-slate-100 text-slate-600", IN_PROGRESS: "bg-blue-50 text-blue-700", COMPLETED: "bg-emerald-50 text-emerald-700" };
+const STYLE = { PENDING: "bg-slate-100 text-slate-600", IN_PROGRESS: "bg-amber-50 text-amber-700", COMPLETED: "bg-emerald-50 text-emerald-700" };
 
 export default function MentorLearningProgress({ onAssign }) {
   const [rows, setRows] = useState(null);
@@ -36,7 +37,7 @@ export default function MentorLearningProgress({ onAssign }) {
       {rows === null && !error && <p className="text-sm text-slate-500">Loading…</p>}
       {rows && <>
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          {[["Not started", count("PENDING"), "bg-slate-200"], ["In progress", count("IN_PROGRESS"), "bg-blue-500"], ["Completed", count("COMPLETED"), "bg-emerald-500"]].map(([title, n, color]) =>
+          {[["Not started", count("PENDING"), "bg-slate-200"], ["In progress", count("IN_PROGRESS"), "bg-amber-500"], ["Completed", count("COMPLETED"), "bg-emerald-500"]].map(([title, n, color]) =>
             <article key={title} className="rounded-xl border border-slate-200 p-4"><div className={`mb-3 h-2 rounded-full ${color}`} /><p className="m-0 text-xs text-slate-500">{title}</p><strong className="mt-1 block text-2xl text-[#0b1d35]">{n}</strong></article>)}
         </div>
         <div className="mb-4 flex flex-wrap gap-2 text-xs">
@@ -49,7 +50,7 @@ export default function MentorLearningProgress({ onAssign }) {
             <tbody>{shown.map((r) => <tr key={r.id} className="border-b border-slate-50 last:border-0">
               <td className="px-3 py-3 font-semibold text-[#0b1d35]">{r.employeeName}</td>
               <td className="px-3 py-3">{r.title}{r.competency && <span className="block text-[10px] text-slate-400">{r.competency}</span>}{r.lastNote && <span className="block text-[10px] text-slate-500">“{r.lastNote}”</span>}</td>
-              <td className="px-3 py-3"><div className="flex items-center gap-2"><div className="h-1.5 w-24 rounded-full bg-slate-100"><div className={`h-full rounded-full ${r.status === "COMPLETED" ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${r.progressPercent}%` }} /></div><b>{r.progressPercent}%</b></div></td>
+              <td className="px-3 py-3"><div className="flex items-center gap-2"><div className="h-1.5 w-24 rounded-full bg-slate-100"><div className={`h-full rounded-full ${progressColor(r.progressPercent)}`} style={{ width: `${clampPercent(r.progressPercent)}%` }} /></div><b>{clampPercent(r.progressPercent)}%</b></div></td>
               <td className="px-3 py-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${STYLE[r.status]}`}>{LABEL[r.status]}</span></td>
               <td className={`px-3 py-3 ${r.overdue ? "font-semibold text-rose-600" : "text-slate-500"}`}>{r.dueDate ? `${r.dueDate}${r.overdue ? " · overdue" : ""}` : "—"}</td>
               <td className="px-3 py-3 text-slate-500">{relativeTime(r.updatedAt)}</td>

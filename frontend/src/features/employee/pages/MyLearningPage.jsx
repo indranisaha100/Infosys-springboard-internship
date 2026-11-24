@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { downloadFile, request } from "../../../shared/services/api";
+import { request } from "../../../shared/services/api";
 
 const STATUS_STYLE = {
   PENDING: "bg-slate-100 text-slate-600",
@@ -78,20 +78,15 @@ function CourseCard({ course, onChanged }) {
 
 export default function MyLearningPage({ onChanged = () => {} }) {
   const [courses, setCourses] = useState(null);
-  const [resources, setResources] = useState([]);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      request("/employee/learning/enrollments"),
-      request("/employee/sections/learning").catch(() => ({ items: [] })),
-    ])
-      .then(([assigned, library]) => {
+    request("/employee/learning/enrollments")
+      .then((assigned) => {
         if (!active) return;
         setCourses(assigned.enrollments || []);
-        setResources((library.items || []).filter((item) => typeof item === "object"));
         setError("");
       })
       .catch((e) => { if (active) setError(e.message); });
@@ -120,8 +115,6 @@ export default function MyLearningPage({ onChanged = () => {} }) {
 
       {active.length > 0 && <section className="mb-6"><h2 className="mb-3 text-sm font-semibold text-blue-950">In your plan ({active.length})</h2><div className="grid gap-3 lg:grid-cols-2">{active.map((c) => <CourseCard key={`${c.id}-${c.progressPercent}`} course={c} onChanged={changed} />)}</div></section>}
       {completed.length > 0 && <section className="mb-6"><h2 className="mb-3 text-sm font-semibold text-blue-950">Completed ({completed.length})</h2><div className="grid gap-3 lg:grid-cols-2">{completed.map((c) => <CourseCard key={`${c.id}-${c.progressPercent}`} course={c} onChanged={changed} />)}</div></section>}
-
-      {resources.length > 0 && <section><h2 className="mb-3 text-sm font-semibold text-blue-950">HR learning library</h2><div className="grid gap-3 sm:grid-cols-2">{resources.map((r) => <div key={r.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-3 text-xs text-blue-900"><span>{r.title} · {r.category}</span>{r.pdfUrl && <button className="font-semibold text-red-600" onClick={() => downloadFile(r.pdfUrl, r.pdfFileName)}>Download PDF</button>}</div>)}</div></section>}
     </div>
   );
 }

@@ -460,8 +460,8 @@ body {
   --forest-900: #0b2b22;
   --forest-850: #123d30;
   --forest-800: #174b39;
-  --emerald-700: #176b50;
-  --emerald-600: #208967;
+  --emerald-700: #145a42;
+  --emerald-600: #176b50;
   --emerald-500: #239873;
   --emerald-400: #72cba6;
   --mint-100: #edf7f1;
@@ -595,7 +595,7 @@ button, a, input, select, textarea {
 /* Consistent emerald accents for Tailwind styled dashboards */
 [class*="bg-blue-950"], [class*="bg-blue-900"], [class*="bg-blue-800"],
 [class*="bg-blue-700"] { background-color: var(--forest-800) !important; }
-[class*="bg-blue-600"], [class*="bg-blue-500"] { background-color: var(--emerald-600) !important; }
+[class*="bg-blue-600"], [class*="bg-blue-500"], [class*="bg-emerald-600"] { background-color: var(--emerald-600) !important; }
 [class*="bg-blue-400"], [class*="bg-blue-300"] { background-color: var(--emerald-500) !important; }
 [class*="bg-blue-200"], [class*="bg-blue-100"], [class*="bg-blue-50"] { background-color: var(--mint-100) !important; }
 [class*="text-blue-950"], [class*="text-blue-900"], [class*="text-blue-800"] { color: var(--forest-900) !important; }
@@ -618,6 +618,7 @@ button, a, input, select, textarea {
 [class~="text-[#0b1d35]"] { color: var(--forest-900) !important; }
 [class~="bg-[#172956]"] { background-color: var(--forest-900) !important; }
 [class~="bg-[#315fae]"], [class~="hover:bg-[#315fae]"]:hover { background-color: var(--emerald-700) !important; }
+[class~="bg-[#208967]"] { background-color: var(--emerald-600) !important; }
 [class~="bg-[#f7f9fc]"] { background-color: var(--canvas) !important; }
 [class*="repeating-linear-gradient"] { background-image: repeating-linear-gradient(to top, transparent 0, transparent 39px, #e3eee7 40px) !important; }
 [class~="bg-[#123c71]"], [class~="to-[#1d5eb1]"] { --tw-gradient-to: #123d30 var(--tw-gradient-to-position) !important; }
@@ -644,7 +645,7 @@ button, a, input, select, textarea {
 .manager-nav button:hover,
 .manager-nav button.active { background: var(--emerald-600); }
 .manager-sidebar-bottom button { background: var(--forest-800); }
-.manager-welcome { background: linear-gradient(110deg, #123d30, #208967); }
+.manager-welcome { background: linear-gradient(110deg, #123d30, #176b50); }
 .manager-welcome p { color: #b5e8d1; }
 .manager-stat-card,
 .manager-panel { background: #fff; border-color: var(--line); }

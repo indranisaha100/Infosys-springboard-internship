@@ -55,7 +55,7 @@ function SectionPage({ activeItem, data, loading }) {
     "My Skills": "Track your capabilities and role readiness.",
     "Knowledge Gap": "Prioritize the skills that will have the biggest impact.",
     Learning: "Continue building the skills that matter to your role.",
-    "My Learning": "Browse HR-published courses and learning resources.",
+    "My Learning": "Track courses and learning plans assigned to you.",
     "Training Programmes": "See scheduled organisation learning programmes and dates.",
     Feedback: "Review your submitted learning feedback.",
     Notifications: "Stay up to date with your SkillTrack workspace.",
@@ -191,11 +191,11 @@ function FeedbackPage({ data, onRefresh }) {
 }
 
 function KnowledgeGapsPage({ scores, onTakeAssessment }) {
-  const gaps = scores
-    .filter((score) => score.total > 0)
+  const gaps = (Array.isArray(scores) ? scores : [])
+    .filter((score) => Number.isFinite(score.total) && score.total > 0)
     .map((score) => {
-      const current = Math.round((score.right / score.total) * 100);
-      const required = Math.round((score.target / score.total) * 100);
+      const current = Math.min(100, Math.max(0, Math.round((score.right / score.total) * 100)));
+      const required = Math.min(100, Math.max(0, Math.round((score.target / score.total) * 100)));
       return { name: score.topic, current, required, gap: Math.max(required - current, 0) };
     });
 
@@ -213,14 +213,14 @@ function KnowledgeGapsPage({ scores, onTakeAssessment }) {
             <p className="mb-0 mt-1.5 text-[10px] text-slate-500">Current score compared with the required target</p>
           </div>
           {gaps.length > 0 && <div className="flex gap-3 text-[9px] text-slate-500" aria-label="Chart legend">
-            <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-500" />Current score</span>
-            <span><i className="mr-1 inline-block h-3 w-0.5 bg-slate-500 align-middle" />Target</span>
+            <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#176b50]" />Current score</span>
+            <span><i className="mr-1 inline-block h-3 w-0.5 bg-[#145a42] align-middle" />Target</span>
           </div>}
         </div>
         {gaps.length ? (
           <div className="space-y-5">
             {gaps.map(({ name, current, required, gap }) => (
-              <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_100px] sm:items-center sm:gap-4" key={name}>
+              <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_minmax(145px,auto)] sm:items-center sm:gap-4" key={name}>
                 <span className="text-xs font-medium text-blue-950">{name}</span>
                 <div
                   className="relative h-3 rounded-full bg-slate-100"
@@ -228,19 +228,19 @@ function KnowledgeGapsPage({ scores, onTakeAssessment }) {
                   aria-label={`${name}: current score ${current}%, target ${required}%, gap ${gap} percentage points`}
                 >
                   <span
-                    className={`block h-full rounded-full ${gap ? "bg-blue-500" : "bg-emerald-500"}`}
+                    className="block h-full rounded-full bg-[#176b50]"
                     style={{ width: `${current}%` }}
                   />
-                  <span className="absolute -top-1 h-5 w-0.5 bg-slate-500" style={{ left: `${required}%` }} />
+                  <span className="absolute -top-1 h-5 w-0.5 -translate-x-1/2 bg-[#145a42]" style={{ left: `${required}%` }} />
                 </div>
-                <span className="text-[10px] text-slate-500">{current}% / {required}%{gap ? ` · ${gap} pp gap` : " · On target"}</span>
+                <span className="whitespace-nowrap text-[10px] text-slate-600">{current}% current · {required}% target{gap ? ` · ${gap} pp gap` : " · On target"}</span>
               </div>
             ))}
           </div>
         ) : (
           <div className="rounded-lg bg-slate-50 p-5 text-center">
             <p className="m-0 text-sm text-slate-600">Complete a skill assessment to see your knowledge gaps.</p>
-            <button className="mt-3 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600" onClick={onTakeAssessment}>
+            <button className="mt-3 rounded-lg bg-[#176b50] px-3 py-2 text-xs font-semibold text-white hover:bg-[#145a42]" onClick={onTakeAssessment}>
               Take skill assessment
             </button>
           </div>
@@ -283,7 +283,7 @@ function ChatBot() {
       <form onSubmit={send} className="mt-3 flex gap-2">
         <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={1000}
           className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs text-black outline-none" placeholder="Ask about your skills..." />
-        <button className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" disabled={sending}>Send</button>
+        <button className="rounded-lg bg-[#176b50] px-3 py-2 text-xs font-semibold text-white hover:bg-[#145a42] disabled:cursor-not-allowed disabled:opacity-100" disabled={sending}>{sending ? "Sending…" : "Send"}</button>
       </form>
     </section>
   );
@@ -636,7 +636,7 @@ export default function DashboardPage() {
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>
             <div className="flex items-center gap-3 max-[650px]:w-full max-[650px]:flex-wrap">
               <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2"><span className="grid h-[38px] w-[38px] place-items-center rounded-full border-4 border-emerald-500 border-l-emerald-100 text-[11px] font-bold text-emerald-600">{readiness?.score ?? "–"}</span><div><small className="block text-[8px] uppercase tracking-wide text-slate-400">Overall readiness</small><strong className="my-0.5 block text-[10px] text-blue-600">{readiness?.label || "Loading…"}</strong><em className={`block text-[8px] not-italic ${readiness?.change < 0 ? "text-rose-600" : "text-emerald-600"}`}>{readiness?.changeLabel || ""}</em></div></div>
-              <button className="rounded-lg bg-blue-500 px-3.5 py-3 text-[10px] font-bold text-white hover:bg-blue-600" onClick={() => selectSection("Skill Assessment")}>
+              <button className="rounded-lg bg-[#176b50] px-3.5 py-3 text-[10px] font-bold text-white hover:bg-[#145a42]" onClick={() => selectSection("Skill Assessment")}>
                 {assessmentResult ? "Review assessment" : "Take skill assessment"} <span className="ml-2">→</span>
               </button>
             </div>
@@ -657,10 +657,10 @@ export default function DashboardPage() {
           <div className="mt-4 grid grid-cols-[1.65fr_1fr] gap-4 max-[900px]:grid-cols-1">
             <article className="min-h-[288px] rounded-xl border border-slate-200 bg-white p-5">
               <div className="flex justify-between gap-2"><div><h2 className="m-0 text-sm font-medium">Knowledge gap analysis</h2><p className="mt-1.5 text-[10px] text-slate-500">Your current level compared with role expectations</p></div></div>
-              <div className="mt-3 flex justify-end gap-3 text-[8px] text-slate-400"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-500" />Current level</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-slate-200" />Required level</span></div>
+              <div className="mt-3 flex justify-end gap-3 text-[8px] text-slate-600"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#176b50]" />Current level</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-slate-200" />Required level</span></div>
               {gaps.length === 0 && <p className="mt-10 text-center text-xs text-slate-500">{dashboardError || "Complete the skill assessment to see how you compare with role expectations."}</p>}
               <div className="mt-0 flex h-40 items-end justify-around gap-3 border-b border-slate-200 bg-[repeating-linear-gradient(to_top,transparent_0,transparent_39px,#eff3f8_40px)] px-2 pt-2">
-                {gaps.map((gap) => <div className="flex h-full flex-1 flex-col items-center justify-end gap-2" key={gap.name}><div className="flex h-[115px] items-end gap-1"><span className="block w-[18px] rounded-t bg-blue-500" style={{ height: `${gap.current}%` }} /><span className="block w-[18px] rounded-t bg-slate-200" style={{ height: `${gap.required}%` }} /></div><small className="whitespace-nowrap text-[8px] text-slate-500">{gap.name}</small></div>)}
+                {gaps.map((gap) => <div className="flex h-full flex-1 flex-col items-center justify-end gap-2" key={gap.name}><div className="flex h-[115px] items-end gap-1"><span className="block w-[18px] rounded-t bg-[#176b50]" style={{ height: `${gap.current}%` }} /><span className="block w-[18px] rounded-t bg-slate-200" style={{ height: `${gap.required}%` }} /></div><small className="whitespace-nowrap text-[8px] text-slate-500">{gap.name}</small></div>)}
               </div>
             </article>
             <article className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="m-0 text-sm font-medium">Focus this week</h2><p className="mt-1.5 text-[10px] text-slate-500">{focus ? "Your next assigned course" : "Stay on track with your plan"}</p>
