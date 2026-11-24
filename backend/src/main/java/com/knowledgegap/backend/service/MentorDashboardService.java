@@ -18,8 +18,6 @@ import java.util.*;
  */
 @Service
 public class MentorDashboardService {
-    private static final List<String> COLORS = List.of("bg-blue-500", "bg-violet-500", "bg-cyan-500", "bg-amber-500", "bg-emerald-500", "bg-rose-500");
-
     private final MentorAssignmentService assignments;
     private final UserRepository users;
     private final AssessmentScoreRepository scoreRepository;
@@ -93,7 +91,7 @@ public class MentorDashboardService {
         out.put("menteeCount", mentees.size());
         out.put("stats", stats(mentees, allSessions));
         out.put("mentees", mentees.stream().map(this::menteeRow).toList());
-        out.put("gaps", teamGaps(mentees));
+        out.put("gaps", teamAssessmentSummary(mentees));
         out.put("heatmapColumns", mentees.stream().limit(8).map(m -> Map.of(
                 "label", initials(m.user()), "name", NotificationHelper.displayName(m.user()))).toList());
         out.put("heatmap", heatmap(mentees));
@@ -179,23 +177,24 @@ public class MentorDashboardService {
 
     // ------------------------------------------------------------------ team aggregates
 
-    private List<Map<String, Object>> teamGaps(List<Mentee> mentees) {
-        Map<String, List<Integer>> gapByTopic = new LinkedHashMap<>();
+    private List<Map<String, Object>> teamAssessmentSummary(List<Mentee> mentees) {
+        Map<String, List<AssessmentScore>> scoresByTopic = new LinkedHashMap<>();
         for (Mentee m : mentees) {
             for (AssessmentScore s : m.latest()) {
-                int gap = Math.max(0, pct(s.getTargetAnswers(), s.getTotalQuestions()) - pct(s.getRightAnswers(), s.getTotalQuestions()));
-                gapByTopic.computeIfAbsent(s.getTopic(), k -> new ArrayList<>()).add(gap);
+                scoresByTopic.computeIfAbsent(s.getTopic(), k -> new ArrayList<>()).add(s);
             }
         }
         List<Map<String, Object>> rows = new ArrayList<>();
-        gapByTopic.forEach((topic, gaps) -> rows.add(Map.of("name", topic,
-                "value", (int) Math.round(gaps.stream().mapToInt(Integer::intValue).average().orElse(0)), "color", "")));
-        rows.sort((a, b) -> Integer.compare((int) b.get("value"), (int) a.get("value")));
-        List<Map<String, Object>> colored = new ArrayList<>();
-        for (int i = 0; i < rows.size(); i++) {
-            colored.add(Map.of("name", rows.get(i).get("name"), "value", rows.get(i).get("value"), "color", COLORS.get(i % COLORS.size())));
-        }
-        return colored;
+        scoresByTopic.forEach((topic, scores) -> {
+            int current = (int) Math.round(scores.stream()
+                    .mapToInt(s -> pct(s.getRightAnswers(), s.getTotalQuestions())).average().orElse(0));
+            int target = (int) Math.round(scores.stream()
+                    .mapToInt(s -> pct(s.getTargetAnswers(), s.getTotalQuestions())).average().orElse(0));
+            rows.add(Map.of("name", topic, "value", current, "target", target,
+                    "gap", Math.max(target - current, 0)));
+        });
+        rows.sort((a, b) -> Integer.compare((int) b.get("gap"), (int) a.get("gap")));
+        return rows;
     }
 
     private List<Map<String, Object>> heatmap(List<Mentee> mentees) {
