@@ -383,12 +383,6 @@ export default function DashboardPage() {
     .catch((error) => setDashboardError(`Dashboard data could not be refreshed: ${error.message}`)), []);
 
   useEffect(() => {
-    const handleUnauthorized = () => navigate("/login", { replace: true });
-    window.addEventListener("kgip:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("kgip:unauthorized", handleUnauthorized);
-  }, [navigate]);
-
-  useEffect(() => {
     const token = localStorage.getItem("kgipToken");
     if (!user || !token || user.role !== "ROLE_EMPLOYEE") navigate("/login", { replace: true });
     else {
