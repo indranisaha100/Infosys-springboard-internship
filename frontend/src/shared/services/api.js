@@ -16,12 +16,31 @@ if (!API_BASE_URL) {
 
 export { API_BASE_URL };
 
+let unauthorizedDispatched = false;
+
+function handleUnauthorized() {
+  localStorage.removeItem("kgipToken");
+  localStorage.removeItem("kgipUser");
+
+  if (!unauthorizedDispatched) {
+    unauthorizedDispatched = true;
+    if (window.location.pathname !== "/login") {
+      window.location.replace("/login");
+    }
+  }
+}
+
 export async function downloadFile(path, fallbackName = "learning-resource.pdf") {
   const token = localStorage.getItem("kgipToken");
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}: PDF download failed.`);
+  if (!response.ok) {
+    if (response.status === 401) handleUnauthorized();
+    const error = new Error(`HTTP ${response.status}: PDF download failed.`);
+    error.status = response.status;
+    throw error;
+  }
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -74,15 +93,18 @@ export async function request(path, options = {}) {
       response: body,
     });
 
-    throw new Error(
-      `HTTP ${response.status}: ${message || "No response body"}`
-    );
+    if (response.status === 401 && path.split("?")[0] !== "/auth/login") handleUnauthorized();
+
+    const error = new Error(`HTTP ${response.status}: ${message || "No response body"}`);
+    error.status = response.status;
+    throw error;
   }
 
   return body;
 }
 
 export function saveSession(user) {
+  unauthorizedDispatched = false;
   localStorage.setItem("kgipToken", user.token);
   localStorage.setItem("kgipUser", JSON.stringify(user));
 }

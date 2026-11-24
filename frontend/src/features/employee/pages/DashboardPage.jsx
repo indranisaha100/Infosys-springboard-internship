@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { downloadFile, request } from "../../../shared/services/api";
 import DashboardHeader from "../../../shared/components/DashboardHeader";
@@ -7,18 +7,15 @@ import { loadResult, scoreByTopic } from "../../skill-assessment/data/skillAsses
 import MessagesPanel from "../../messaging/components/MessagesPanel";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
+import MyLearningPage from "./MyLearningPage";
+import MentoringSessionsPage from "../components/MentoringSessionsPage";
+import { formatDateTime } from "../../../shared/utils/sessions";
 
 const navigation = [
   ["dashboard", "Dashboard"], ["profile", "My Profile"], ["assessment", "Skill Assessment"],
   ["gaps", "Knowledge Gap"], ["ai", "Learning Recommendations"], ["learning", "My Learning"],
-  ["profile", "Mentors"], ["profile", "Mentorship Requests"], ["learning", "Messages / Chatbox"],
+  ["profile", "Mentors"], ["profile", "Mentorship Requests"], ["profile", "Mentoring Sessions"], ["learning", "Messages / Chatbox"],
   ["bell", "Notifications"],
-];
-const gaps = [
-  { name: "Product", current: 62, required: 77 },
-  { name: "Advanced", current: 55, required: 77 },
-  { name: "Data-Informed", current: 68, required: 73 },
-  { name: "Stakeholder", current: 70, required: 73 },
 ];
 function Icon({ name, className = "h-5 w-5" }) {
   const paths = {
@@ -58,7 +55,7 @@ function SectionPage({ activeItem, data, loading }) {
     "My Skills": "Track your capabilities and role readiness.",
     "Knowledge Gap": "Prioritize the skills that will have the biggest impact.",
     Learning: "Continue building the skills that matter to your role.",
-    "My Learning": "View learning plans assigned by HR.",
+    "My Learning": "Track courses and learning plans assigned to you.",
     "Training Programmes": "See scheduled organisation learning programmes and dates.",
     Feedback: "Review your submitted learning feedback.",
     Notifications: "Stay up to date with your SkillTrack workspace.",
@@ -198,11 +195,11 @@ function FeedbackPage({ data, onRefresh }) {
 }
 
 function KnowledgeGapsPage({ scores, onTakeAssessment }) {
-  const gaps = scores
-    .filter((score) => score.total > 0)
+  const gaps = (Array.isArray(scores) ? scores : [])
+    .filter((score) => Number.isFinite(score.total) && score.total > 0)
     .map((score) => {
-      const current = Math.round((score.right / score.total) * 100);
-      const required = Math.round((score.target / score.total) * 100);
+      const current = Math.min(100, Math.max(0, Math.round((score.right / score.total) * 100)));
+      const required = Math.min(100, Math.max(0, Math.round((score.target / score.total) * 100)));
       return { name: score.topic, current, required, gap: Math.max(required - current, 0) };
     });
 
@@ -220,14 +217,14 @@ function KnowledgeGapsPage({ scores, onTakeAssessment }) {
             <p className="mb-0 mt-1.5 text-[10px] text-slate-500">Current score compared with the required target</p>
           </div>
           {gaps.length > 0 && <div className="flex gap-3 text-[9px] text-slate-500" aria-label="Chart legend">
-            <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-500" />Current score</span>
-            <span><i className="mr-1 inline-block h-3 w-0.5 bg-slate-500 align-middle" />Target</span>
+            <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#176b50]" />Current score</span>
+            <span><i className="mr-1 inline-block h-3 w-0.5 bg-[#145a42] align-middle" />Target</span>
           </div>}
         </div>
         {gaps.length ? (
           <div className="space-y-5">
             {gaps.map(({ name, current, required, gap }) => (
-              <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_100px] sm:items-center sm:gap-4" key={name}>
+              <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_minmax(145px,auto)] sm:items-center sm:gap-4" key={name}>
                 <span className="text-xs font-medium text-blue-950">{name}</span>
                 <div
                   className="relative h-3 rounded-full bg-slate-100"
@@ -235,19 +232,19 @@ function KnowledgeGapsPage({ scores, onTakeAssessment }) {
                   aria-label={`${name}: current score ${current}%, target ${required}%, gap ${gap} percentage points`}
                 >
                   <span
-                    className={`block h-full rounded-full ${gap ? "bg-blue-500" : "bg-emerald-500"}`}
+                    className="block h-full rounded-full bg-[#176b50]"
                     style={{ width: `${current}%` }}
                   />
-                  <span className="absolute -top-1 h-5 w-0.5 bg-slate-500" style={{ left: `${required}%` }} />
+                  <span className="absolute -top-1 h-5 w-0.5 -translate-x-1/2 bg-[#145a42]" style={{ left: `${required}%` }} />
                 </div>
-                <span className="text-[10px] text-slate-500">{current}% / {required}%{gap ? ` · ${gap} pp gap` : " · On target"}</span>
+                <span className="whitespace-nowrap text-[10px] text-slate-600">{current}% current · {required}% target{gap ? ` · ${gap} pp gap` : " · On target"}</span>
               </div>
             ))}
           </div>
         ) : (
           <div className="rounded-lg bg-slate-50 p-5 text-center">
             <p className="m-0 text-sm text-slate-600">Complete a skill assessment to see your knowledge gaps.</p>
-            <button className="mt-3 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600" onClick={onTakeAssessment}>
+            <button className="mt-3 rounded-lg bg-[#176b50] px-3 py-2 text-xs font-semibold text-white hover:bg-[#145a42]" onClick={onTakeAssessment}>
               Take skill assessment
             </button>
           </div>
@@ -290,7 +287,7 @@ function ChatBot() {
       <form onSubmit={send} className="mt-3 flex gap-2">
         <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={1000}
           className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs text-black outline-none" placeholder="Ask about your skills..." />
-        <button className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" disabled={sending}>Send</button>
+        <button className="rounded-lg bg-[#176b50] px-3 py-2 text-xs font-semibold text-white hover:bg-[#145a42] disabled:cursor-not-allowed disabled:opacity-100" disabled={sending}>{sending ? "Sending…" : "Send"}</button>
       </form>
     </section>
   );
@@ -382,13 +379,18 @@ export default function DashboardPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [notificationCount, setNotificationCount] = useState(0);
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardError, setDashboardError] = useState("");
+
+  const loadDashboard = useCallback(() => request("/employee/dashboard")
+    .then((data) => { setDashboard(data); setDashboardError(""); })
+    .catch((error) => setDashboardError(`Dashboard data could not be refreshed: ${error.message}`)), []);
 
   useEffect(() => {
-    if (!user) navigate("/login", { replace: true });
+    const token = localStorage.getItem("kgipToken");
+    if (!user || !token || user.role !== "ROLE_EMPLOYEE") navigate("/login", { replace: true });
     else {
-      request("/employee/dashboard").catch(() => {
-        setSectionData({ message: "Dashboard data could not be refreshed from the server." });
-      });
+      loadDashboard();
       request("/employee/assessments/latest")
         .then((result) => {
           setAssessmentLoadError("");
@@ -398,7 +400,7 @@ export default function DashboardPage() {
           setAssessmentLoadError(`Saved assessment could not be loaded: ${error.message}`);
         });
     }
-  }, [navigate, user]);
+  }, [navigate, user, loadDashboard]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -415,6 +417,18 @@ export default function DashboardPage() {
     setActiveItem(label);
     if (label === "Dashboard") {
       setSectionData(null);
+      loadDashboard();
+      return;
+    }
+    if (label === "Mentoring Sessions") {
+      setSectionData(null);
+      setSectionLoading(false);
+      loadDashboard();
+      return;
+    }
+    if (label === "My Learning" || label === "Learning") {
+      setSectionData(null);
+      setSectionLoading(false);
       return;
     }
     if (label === "Skill Assessment") {
@@ -535,6 +549,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ scores }),
     });
     setAssessmentResult({ ...attempt, scores });
+    loadDashboard();
   }
   function assessmentRetaken() {
     setAssessmentResult(null);
@@ -543,6 +558,12 @@ export default function DashboardPage() {
     setAiError("");
   }
   if (!user) return null;
+  const gaps = dashboard?.gaps || [];
+  const readiness = dashboard?.readiness;
+  const focus = dashboard?.focus;
+  const connections = dashboard?.connections;
+  const statIcons = [<Icon key="a" name="skills" className="h-5 w-5" />, <Icon key="b" name="gaps" className="h-5 w-5" />, <Icon key="c" name="learning" className="h-5 w-5" />, <span key="d" className="text-xl">✓</span>];
+  const statTones = ["blue", "orange", "purple", "green"];
   const firstName = user.firstName || user.email?.split("@")[0] || "there";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AM";
   const assessmentScores = assessmentResult
@@ -571,12 +592,22 @@ export default function DashboardPage() {
         <p className="mb-2 mt-9 px-4 text-[10px] font-bold uppercase tracking-[1.2px] text-blue-300 max-[650px]:hidden">Employee workspace</p>
         <nav className="grid gap-1" aria-label="Employee workspace">
           {navigation.map(([icon, label]) => {
-            const locked = label === "AI Recommendations" && !assessmentResult;
-            return <button className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#208967] text-white" : "text-blue-200 hover:bg-[#208967]"} disabled:cursor-not-allowed disabled:opacity-50`} key={label} onClick={() => { selectSection(label); setSidebarOpen(false); }} disabled={locked} title={locked ? "Complete the skill assessment to unlock recommendations" : undefined} aria-disabled={locked}>
-              <SidebarIcon label={label} /><span className="max-[650px]:hidden">{label}</span>
-              {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
-              {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
-            </button>;
+            const locked = label === "Learning Recommendations" && !assessmentResult;
+            return (
+              <button
+                className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeItem === label ? "bg-[#208967] text-white" : "text-blue-200 hover:bg-[#208967]"} disabled:cursor-not-allowed disabled:opacity-50`}
+                key={label}
+                onClick={() => { selectSection(label); setSidebarOpen(false); }}
+                disabled={locked}
+                title={locked ? "Complete the skill assessment to unlock recommendations" : undefined}
+                aria-disabled={locked}
+              >
+                <SidebarIcon label={label} />
+                <span className="max-[650px]:hidden">{label}</span>
+                {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
+                {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
+              </button>
+            );
           })}
         </nav>
       </aside>
@@ -604,12 +635,12 @@ export default function DashboardPage() {
         {activeItem === "AI Recommendations" || activeItem === "Learning Recommendations" ? <AIRecommendationsPage data={aiRecommendations} loading={aiLoading} error={aiError} onRetry={() => selectSection(activeItem, true)} /> : activeItem === "Knowledge Gap" ? <KnowledgeGapsPage scores={assessmentScores} onTakeAssessment={() => selectSection("Skill Assessment")} /> : activeItem === "Mentors" ? <MentorsPage mentors={sectionData?.mentors || []} loading={sectionLoading} error={sectionData?.error} /> : activeItem === "Mentorship Requests" ? <MentorshipRequestsPage data={sectionData} onRefresh={() => selectSection("Mentorship Requests")} /> : activeItem === "Feedback" ? <FeedbackPage data={sectionData} onRefresh={() => selectSection("Feedback")} /> : activeItem === "Notifications" ? <NotificationInbox roleLabel="Employee workspace" onUnreadCountChange={setNotificationCount} /> : activeItem === "Skill Assessment" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
           <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Skill Assessment</p><h1 className="m-0 text-2xl font-medium text-blue-950">Skill Assessment</h1><p className="mt-2 text-xs text-slate-500">Answer a short set of questions to see your strengths and get focused learning recommendations.</p></div>
           <SkillAssessment onComplete={assessmentCompleted} onRetake={assessmentRetaken} persistedResult={assessmentResult} />
-        </div>  : activeItem === "Messages / Chatbox" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4"><MessagesPanel /></div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
+        </div>  : activeItem === "My Learning" || activeItem === "Learning" ? <MyLearningPage onChanged={loadDashboard} /> : activeItem === "Mentoring Sessions" ? <MentoringSessionsPage onChanged={loadDashboard} /> : activeItem === "Messages / Chatbox" ? <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4"><MessagesPanel /></div> : activeItem !== "Dashboard" ? <SectionPage activeItem={activeItem} data={sectionData} loading={sectionLoading} /> : <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-6 max-[650px]:px-4">
           <div className="flex items-center justify-between gap-5 max-[650px]:flex-col max-[650px]:items-start">
             <div><h1 className="m-0 text-[22px] font-medium tracking-tight text-blue-950">Welcome back, {firstName}</h1><p className="mt-2 text-[11px] text-slate-500">Here&apos;s where your skills stand and what to focus on next.</p></div>
             <div className="flex items-center gap-3 max-[650px]:w-full max-[650px]:flex-wrap">
-              <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2"><span className="grid h-[38px] w-[38px] place-items-center rounded-full border-4 border-emerald-500 border-l-emerald-100 text-[11px] font-bold text-emerald-600">78</span><div><small className="block text-[8px] uppercase tracking-wide text-slate-400">Overall readiness</small><strong className="my-0.5 block text-[10px] text-blue-600">Strong foundation</strong><em className="block text-[8px] not-italic text-emerald-600">Up 6% this quarter</em></div></div>
-              <button className="rounded-lg bg-blue-500 px-3.5 py-3 text-[10px] font-bold text-white hover:bg-blue-600" onClick={() => selectSection("Skill Assessment")}>
+              <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2"><span className="grid h-[38px] w-[38px] place-items-center rounded-full border-4 border-emerald-500 border-l-emerald-100 text-[11px] font-bold text-emerald-600">{readiness?.score ?? "–"}</span><div><small className="block text-[8px] uppercase tracking-wide text-slate-400">Overall readiness</small><strong className="my-0.5 block text-[10px] text-blue-600">{readiness?.label || "Loading…"}</strong><em className={`block text-[8px] not-italic ${readiness?.change < 0 ? "text-rose-600" : "text-emerald-600"}`}>{readiness?.changeLabel || ""}</em></div></div>
+              <button className="rounded-lg bg-[#176b50] px-3.5 py-3 text-[10px] font-bold text-white hover:bg-[#145a42]" onClick={() => selectSection("Skill Assessment")}>
                 {assessmentResult ? "Review assessment" : "Take skill assessment"} <span className="ml-2">→</span>
               </button>
             </div>
@@ -625,17 +656,42 @@ export default function DashboardPage() {
             </article>;
           })()}
           <div className="mt-5 grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[650px]:gap-2">
-            <StatCard icon={<Icon name="skills" className="h-5 w-5" />} tone="blue" label="Total skills" value="24" note="Across 5 categories" /><StatCard icon={<Icon name="gaps" className="h-5 w-5" />} tone="orange" label="Skills to improve" value="6" note="2 are high priority" /><StatCard icon={<Icon name="learning" className="h-5 w-5" />} tone="purple" label="Learning progress" value="68%" note="+12% this month" /><StatCard icon={<span className="text-xl">✓</span>} tone="green" label="Completed trainings" value="12" note="3 this quarter" />
+            {(dashboard?.stats || []).map((stat, index) => <StatCard key={stat.label} icon={statIcons[index]} tone={statTones[index]} label={stat.label} value={stat.value} note={stat.note} />)}
           </div>
           <div className="mt-4 grid grid-cols-[1.65fr_1fr] gap-4 max-[900px]:grid-cols-1">
             <article className="min-h-[288px] rounded-xl border border-slate-200 bg-white p-5">
-              <div className="flex justify-between gap-2"><div><h2 className="m-0 text-sm font-medium">Knowledge gap analysis</h2><p className="mt-1.5 text-[10px] text-slate-500">Your current level compared with role expectations</p></div><button className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[9px] text-slate-500">This quarter⌄</button></div>
-              <div className="mt-3 flex justify-end gap-3 text-[8px] text-slate-400"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-500" />Current level</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-slate-200" />Required level</span></div>
+              <div className="flex justify-between gap-2"><div><h2 className="m-0 text-sm font-medium">Knowledge gap analysis</h2><p className="mt-1.5 text-[10px] text-slate-500">Your current level compared with role expectations</p></div></div>
+              <div className="mt-3 flex justify-end gap-3 text-[8px] text-slate-600"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#176b50]" />Current level</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-slate-200" />Required level</span></div>
+              {gaps.length === 0 && <p className="mt-10 text-center text-xs text-slate-500">{dashboardError || "Complete the skill assessment to see how you compare with role expectations."}</p>}
               <div className="mt-0 flex h-40 items-end justify-around gap-3 border-b border-slate-200 bg-[repeating-linear-gradient(to_top,transparent_0,transparent_39px,#eff3f8_40px)] px-2 pt-2">
-                {gaps.map((gap) => <div className="flex h-full flex-1 flex-col items-center justify-end gap-2" key={gap.name}><div className="flex h-[115px] items-end gap-1"><span className="block w-[18px] rounded-t bg-blue-500" style={{ height: `${gap.current}%` }} /><span className="block w-[18px] rounded-t bg-slate-200" style={{ height: `${gap.required}%` }} /></div><small className="whitespace-nowrap text-[8px] text-slate-500">{gap.name}</small></div>)}
+                {gaps.map((gap) => <div className="flex h-full flex-1 flex-col items-center justify-end gap-2" key={gap.name}><div className="flex h-[115px] items-end gap-1"><span className="block w-[18px] rounded-t bg-[#176b50]" style={{ height: `${gap.current}%` }} /><span className="block w-[18px] rounded-t bg-slate-200" style={{ height: `${gap.required}%` }} /></div><small className="whitespace-nowrap text-[8px] text-slate-500">{gap.name}</small></div>)}
               </div>
             </article>
-            <article className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="m-0 text-sm font-medium">Focus this week</h2><p className="mt-1.5 text-[10px] text-slate-500">Stay on track with your plan</p><div className="mt-5 grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-500"><Icon name="learning" className="h-5 w-5" /></div><span className="mt-3 inline-block rounded-full bg-orange-50 px-2 py-1 text-[8px] font-bold uppercase text-orange-500">High priority</span><h3 className="mb-1 mt-3 text-sm font-medium">Advanced Prototyping in Figma</h3><p className="m-0 text-[10px] text-slate-500">Build realistic interactions and scalable design systems.</p><div className="mt-4 flex justify-between text-[9px] text-slate-500"><span>5 of 8 modules</span><strong className="text-blue-950">62%</strong></div><div className="mt-1.5 h-1 rounded bg-slate-200"><span className="block h-full w-[62%] rounded bg-blue-500" /></div><button className="mt-4 w-full rounded-lg bg-blue-500 p-2.5 text-[10px] font-bold text-white">Continue learning <span className="float-right text-sm">→</span></button></article>
+            <article className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="m-0 text-sm font-medium">Focus this week</h2><p className="mt-1.5 text-[10px] text-slate-500">{focus ? "Your next assigned course" : "Stay on track with your plan"}</p>
+              {focus ? <>
+                <div className="mt-5 grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-500"><Icon name="learning" className="h-5 w-5" /></div>
+                <span className={`mt-3 inline-block rounded-full px-2 py-1 text-[8px] font-bold uppercase ${focus.overdue ? "bg-red-50 text-red-500" : "bg-orange-50 text-orange-500"}`}>{focus.overdue ? "Overdue" : focus.status === "IN_PROGRESS" ? "In progress" : "Not started"}</span>
+                <h3 className="mb-1 mt-3 text-sm font-medium">{focus.title}</h3>
+                <p className="m-0 text-[10px] text-slate-500">{focus.competency ? `${focus.competency} · ` : ""}{focus.dueDate ? `Due ${focus.dueDate}` : "No due date"}</p>
+                <div className="mt-4 flex justify-between text-[9px] text-slate-500"><span>Progress</span><strong className="text-blue-950">{focus.progressPercent}%</strong></div>
+                <div className="mt-1.5 h-1 rounded bg-slate-200"><span className="block h-full rounded bg-blue-500" style={{ width: `${focus.progressPercent}%` }} /></div>
+                <button className="mt-4 w-full rounded-lg bg-blue-500 p-2.5 text-[10px] font-bold text-white" onClick={() => selectSection("My Learning")}>{focus.progressPercent > 0 ? "Continue learning" : "Start learning"} <span className="float-right text-sm">→</span></button>
+              </> : <p className="mt-6 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">{dashboard?.learning?.total ? "All assigned courses are completed. Nice work." : "No course has been assigned to you yet. HR will assign one after reviewing your skill gaps."}</p>}
+            </article>
+            <article className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2 max-[900px]:col-span-1"><h2 className="m-0 text-sm font-medium">Your support network</h2><p className="mt-1.5 text-[10px] text-slate-500">The people who see your progress</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
+                <div className="rounded-lg bg-slate-50 p-3"><small className="block text-[9px] uppercase text-slate-400">Mentor</small>{connections?.mentors?.length ? connections.mentors.map((m) => <p key={m.email} className="mb-0 mt-1 text-blue-950">{m.name} <span className="text-[9px] text-slate-400">({m.status.toLowerCase()}{m.subjects?.length ? ` · ${m.subjects.join(", ")}` : ""})</span></p>) : <button className="mt-1 text-left text-blue-600" onClick={() => selectSection("Mentorship Requests")}>No mentor yet – send a request</button>}</div>
+                <div className="rounded-lg bg-slate-50 p-3"><small className="block text-[9px] uppercase text-slate-400">HR contact</small><p className="mb-0 mt-1 text-blue-950">{connections?.hr ? connections.hr.name : "Not assigned yet"}</p></div>
+                <div className="rounded-lg bg-slate-50 p-3"><small className="block text-[9px] uppercase text-slate-400">Department head</small><p className="mb-0 mt-1 text-blue-950">{connections?.departmentHead ? connections.departmentHead.name : connections?.department ? `None found for ${connections.department}` : "No department set"}</p></div>
+              </div>
+              {dashboard?.upcomingSessions?.length > 0 && <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+                <small className="block text-[9px] uppercase text-slate-400">Next mentoring sessions</small>
+                {dashboard.upcomingSessions.map((session) => <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50/60 p-3 text-xs">
+                  <span><strong className="text-blue-950">{session.title}</strong><span className="block text-[10px] text-slate-500">{session.mentorName} · {formatDateTime(session.scheduledAt)}</span></span>
+                  {session.meetLink ? <a className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white" href={session.meetLink} target="_blank" rel="noopener noreferrer">Join Google Meet</a> : <button className="text-[10px] text-blue-600" onClick={() => selectSection("Mentoring Sessions")}>Link pending</button>}
+                </div>)}
+              </div>}
+            </article>
           </div>
           <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">

@@ -5,8 +5,9 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
 import NotificationComposer from "../../../shared/components/NotificationComposer";
+import HrMentorAssignments from "../components/HrMentorAssignments";
 
-const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Notifications", "Role Benchmarks"];
+const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Mentor Assignments", "Notifications", "Role Benchmarks"];
 
 const emerald = {
   primary: "#72CBA6",
@@ -382,6 +383,8 @@ export default function HRDashboardPage() {
               <div className="mt-5 grid gap-3 md:grid-cols-2">{filteredMentors.map((mentor) => <article key={mentor.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F8F5] text-sm font-bold text-[#0F5257]">{(mentor.name || mentor.email || "M").slice(0, 1).toUpperCase()}</span><div><strong className="text-sm">{mentor.name || mentor.email}</strong><p className="mt-1 text-xs text-slate-500">{mentor.email}</p></div></div><p className="mb-3 mt-3 text-xs text-slate-500">{mentor.department || "No department assigned"}</p><label className="block text-xs font-semibold text-slate-600">Expertise <span className="font-normal text-slate-400">(comma-separated skills)</span><input value={mentorExpertise[mentor.id] || ""} onChange={(event) => setMentorExpertise((current) => ({ ...current, [mentor.id]: event.target.value }))} placeholder="Java, SQL, React" className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-normal outline-none focus:border-[#50C878]"/></label><button onClick={() => updateMentorExpertise(mentor.id)} disabled={savingMentor === mentor.id} className="mt-3 rounded-lg bg-[#0F5257] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{savingMentor === mentor.id ? "Saving…" : "Save expertise"}</button></article>)}</div>
               {!filteredMentors.length && <p className="mt-5 rounded-xl bg-[#E8F8F5] p-8 text-center text-sm text-slate-500">No mentors matched your search.</p>}
             </section>
+          ) : activeSection === "Mentor Assignments" ? (
+            <HrMentorAssignments employees={employees} mentors={mentors} />
           ) : activeSection === "Notifications" ? (
             <section className="space-y-6">
               <div>

@@ -101,7 +101,7 @@
 
 .manager-nav button:hover,
 .manager-nav button.active {
-  background: #208967;
+  background: #176b50;
   color: white;
 }
 
@@ -120,7 +120,7 @@
 }
 
 .manager-welcome {
-  background: linear-gradient(110deg, #183858, #28658b);
+  background: linear-gradient(110deg, #123d30, #176b50);
   padding: 30px;
   border-radius: 15px;
   color: white;
@@ -130,7 +130,7 @@
 }
 
 .manager-welcome p {
-  color: #8fd9f1;
+  color: #b5e8d1;
   font-size: 10px;
   letter-spacing: 2px;
   font-weight: bold;
@@ -915,7 +915,7 @@
 .manager-loading button {
   border: 0;
   border-radius: 8px;
-  background: #286ca8;
+  background: #176b50;
   color: white;
   padding: 11px 20px;
   cursor: pointer;

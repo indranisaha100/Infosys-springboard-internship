@@ -9,4 +9,5 @@ public interface MentorshipRequestRepository extends JpaRepository<MentorshipReq
 
     List<MentorshipRequest> findByMentorEmailIgnoreCaseOrderByCreatedAtDesc(String mentorEmail);
 
+    List<MentorshipRequest> findByEmployeeEmailIgnoreCaseOrderByCreatedAtDesc(String employeeEmail);
 }
