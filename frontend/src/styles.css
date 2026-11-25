@@ -681,8 +681,29 @@ button, a, input, select, textarea {
 .workspace-header-actions {
   display: flex;
   min-width: 0;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+}
+.workspace-header-datetime {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: center;
+  gap: 2px;
+  border: 1px solid #a7e4c5;
+  border-radius: 12px;
+  padding: 7px 12px;
+  background: #e8f8ef;
+  color: #176b48;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.workspace-header-datetime time:last-child {
+  color: #0b2b22;
+  font-size: 13px;
+  font-weight: 800;
 }
 .workspace-header-profile {
   display: flex;
@@ -718,6 +739,33 @@ button.workspace-header-profile {
   font-size: 12px;
   font-weight: 700;
 }
+.workspace-header-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.unread-notification-count {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #fff;
+  border-radius: 9999px;
+  padding: 0 4px;
+  background: #e11d48;
+  color: #fff;
+  font: 700 10px/1 ui-sans-serif, system-ui, sans-serif;
+}
+.header-notification-count {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  z-index: 1;
+}
+.sidebar-notification-count {
+  margin-left: auto;
+}
 .workspace-logout-button {
   flex: 0 0 auto;
   border: 0;
@@ -740,6 +788,8 @@ button.workspace-header-profile {
   .workspace-header { gap: 10px; padding-inline: 16px; }
   .workspace-header h1 { font-size: 16px; }
   .workspace-header-actions { gap: 8px; }
+  .workspace-header-datetime { padding: 6px 9px; font-size: 10px; }
+  .workspace-header-datetime time:last-child { font-size: 12px; }
   .workspace-header-profile { gap: 7px; }
   .workspace-header-profile strong { max-width: 100px; font-size: 12px; }
   .workspace-header-avatar { width: 36px; height: 36px; flex-basis: 36px; }
@@ -747,7 +797,9 @@ button.workspace-header-profile {
 }
 @media (max-width: 480px) {
   .workspace-header { gap: 6px; padding-inline: 12px; }
-  .workspace-header h1 { font-size: 14px; }
+  .workspace-header h1 { min-width: 0; flex: 1 1 auto; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .workspace-header-datetime { padding: 5px 7px; font-size: 9px; }
+  .workspace-header-datetime time:last-child { font-size: 11px; }
   .workspace-header-profile { gap: 5px; }
   .workspace-header-profile strong { max-width: 64px; font-size: 11px; }
   .workspace-header-avatar { width: 32px; height: 32px; flex-basis: 32px; }
