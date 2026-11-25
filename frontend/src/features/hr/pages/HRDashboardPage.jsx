@@ -5,6 +5,8 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
 import NotificationComposer from "../../../shared/components/NotificationComposer";
+import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
+import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 import HrMentorAssignments from "../components/HrMentorAssignments";
 
 const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Mentor Assignments", "Notifications", "Role Benchmarks"];
@@ -187,6 +189,7 @@ export default function HRDashboardPage() {
   const [notificationRecipientError, setNotificationRecipientError] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(user));
 
   const loadWorkspace = useCallback(async () => {
     setLoading(true);
@@ -331,7 +334,7 @@ export default function HRDashboardPage() {
       >
         <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#50C878] text-[#073d37]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 17V13M12 17V8M18 17V5" /></svg></span><span className="max-lg:hidden"><strong className="block text-lg">SkillTrack</strong><small className="text-[10px] text-[#A3E4D7]">HR workspace</small></span></div>
         <p className="mb-3 mt-9 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-[#A3E4D7] max-lg:hidden">HR workspace</p>
-        <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSidebarOpen(false); setSearch(""); setError(""); setSuccess(""); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><SidebarIcon label={section} /><span className="max-lg:hidden">{section}</span></button>)}</nav>
+        <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSidebarOpen(false); setSearch(""); setError(""); setSuccess(""); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><SidebarIcon label={section} /><span className="max-lg:hidden">{section}</span>{section === "Notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}</button>)}</nav>
       </aside>
 
       {sidebarOpen && (
@@ -348,12 +351,13 @@ export default function HRDashboardPage() {
           title="HR Dashboard"
           name={`${user.firstName || user.email}${user.lastName ? ` ${user.lastName}` : ""}`}
           initials={`${user.firstName?.[0] || "H"}${user.lastName?.[0] || ""}`.toUpperCase()}
+          notificationCount={notificationCount}
           onLogout={signOut}
           onMenuClick={() => setSidebarOpen((open) => !open)}
           menuExpanded={sidebarOpen}
         />
         <nav className="grid grid-cols-2 gap-2 border-b border-[#A3E4D7] bg-white p-3 md:hidden" aria-label="Mobile HR workspace">
-          {sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${activeSection === section ? "bg-[#208967] text-white" : "bg-[#E8F8F5] text-[#0F5257]"}`}>{section}</button>)}
+          {sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${activeSection === section ? "bg-[#208967] text-white" : "bg-[#E8F8F5] text-[#0F5257]"}`}>{section}{section === "Notifications" && <NotificationCountBadge count={notificationCount} className="ml-2 align-middle" />}</button>)}
         </nav>
         <div className="mx-auto max-w-[1440px] px-8 pb-12 pt-7 max-md:px-4">
           {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
@@ -399,7 +403,7 @@ export default function HRDashboardPage() {
                 metadata={{ source: "hr-dashboard" }}
                 heading="Create and send notification"
               />
-              <NotificationInbox roleLabel="HR workspace" />
+              <NotificationInbox roleLabel="HR workspace" onUnreadCountChange={setNotificationCount} />
             </section>
           ) : (
             <section className="rounded-2xl border border-[#A3E4D7] bg-white p-5">

@@ -5,6 +5,8 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import MessagesPanel from "../../messaging/components/MessagesPanel";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
+import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
+import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 import MentorSessionsPage from "../components/MentorSessionsPage";
 import MentorLearningProgress from "../components/MentorLearningProgress";
 import MenteeDetailPanel from "../components/MenteeDetailPanel";
@@ -197,6 +199,7 @@ function SectionWorkspace({ activeItem, data, dashboardData, loading, error, sea
 export default function MentorDashboardPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("kgipUser") || "null");
+  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(user));
   const [data, setData] = useState(emptyData);
   const [activeItem, setActiveItem] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -292,7 +295,7 @@ export default function MentorDashboardPage() {
       <Logo />
       <p className="mb-3 mt-10 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-blue-300 max-lg:hidden">Mentor workspace</p>
       <nav className="space-y-1" aria-label="Mentor workspace">
-        {navigation.map(([, label]) => <button key={label} onClick={() => { setActiveItem(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeItem === label ? "bg-blue-600 font-semibold text-white shadow-lg shadow-blue-950/20" : "text-blue-200 hover:bg-white/10 hover:text-white"}`}><SidebarIcon label={label} /><span className="max-lg:hidden">{label}</span></button>)}
+        {navigation.map(([, label]) => <button key={label} onClick={() => { setActiveItem(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeItem === label ? "bg-blue-600 font-semibold text-white shadow-lg shadow-blue-950/20" : "text-blue-200 hover:bg-white/10 hover:text-white"}`}><SidebarIcon label={label} /><span className="max-lg:hidden">{label}</span>{label === "Notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}</button>)}
       </nav>
     </aside>
 
@@ -303,6 +306,7 @@ export default function MentorDashboardPage() {
         title="Mentor Dashboard"
         name={`${firstName} ${user?.lastName || ""}`}
         initials={initials}
+        notificationCount={notificationCount}
         onLogout={signOut}
         onMenuClick={() => setSidebarOpen((open) => !open)}
         menuExpanded={sidebarOpen}
@@ -314,7 +318,7 @@ export default function MentorDashboardPage() {
         {(activeItem === "Messages" || activeItem === "Messages / Chatbox")
           ? <MessagesPanel />
           : activeItem === "Notifications"
-            ? <NotificationInbox roleLabel="Mentor workspace" />
+            ? <NotificationInbox roleLabel="Mentor workspace" onUnreadCountChange={setNotificationCount} />
             : activeItem === "Learning Progress"
               ? <MentorLearningProgress key={reloadKey} onAssign={(email) => setAssignDialog({ email: email || "" })} />
               : activeItem === "Mentorship Management"
@@ -324,7 +328,6 @@ export default function MentorDashboardPage() {
                   : <>
           <section className="flex items-center gap-5 rounded-2xl bg-gradient-to-br from-[#123c71] to-[#1d5eb1] p-7 text-white shadow-lg shadow-blue-900/10">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-blue-200">{new Date().toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
               <h2 className="m-0 text-3xl font-bold tracking-tight">Welcome back, {firstName}!</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Support your mentees by identifying skill gaps, tracking learning progress, and scheduling mentoring sessions.</p>
             </div>

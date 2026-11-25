@@ -7,6 +7,8 @@ import { loadResult, scoreByTopic } from "../../skill-assessment/data/skillAsses
 import MessagesPanel from "../../messaging/components/MessagesPanel";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
+import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
+import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 import MyLearningPage from "./MyLearningPage";
 import MentoringSessionsPage from "../components/MentoringSessionsPage";
 import { formatDateTime } from "../../../shared/utils/sessions";
@@ -378,7 +380,7 @@ export default function DashboardPage() {
   const [aiRecommendationFor, setAiRecommendationFor] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
-  const [notificationCount, setNotificationCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(user));
   const [dashboard, setDashboard] = useState(null);
   const [dashboardError, setDashboardError] = useState("");
 
@@ -401,17 +403,6 @@ export default function DashboardPage() {
         });
     }
   }, [navigate, user, loadDashboard]);
-
-  useEffect(() => {
-    if (!user) return undefined;
-    let active = true;
-    const refreshNotificationCount = () => request("/notifications/unread-count")
-      .then((result) => { if (active) setNotificationCount(Number.isInteger(result.count) ? result.count : 0); })
-      .catch(() => { if (active) setNotificationCount(0); });
-    refreshNotificationCount();
-    const timer = window.setInterval(refreshNotificationCount, 15000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [user]);
 
   async function selectSection(label, forceRefresh = false) {
     setActiveItem(label);
@@ -604,7 +595,7 @@ export default function DashboardPage() {
               >
                 <SidebarIcon label={label} />
                 <span className="max-[650px]:hidden">{label}</span>
-                {label === "Notifications" && notificationCount > 0 && <b className="ml-auto grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] text-white">{notificationCount > 99 ? "99+" : notificationCount}</b>}
+                {label === "Notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}
                 {locked && <span className="ml-auto text-[10px] max-[650px]:hidden" aria-hidden="true">🔒</span>}
               </button>
             );
@@ -626,6 +617,7 @@ export default function DashboardPage() {
           title="Employee Dashboard"
           name={`${firstName} ${user.lastName || ""}`}
           initials={initials}
+          notificationCount={notificationCount}
           onProfileClick={() => selectSection("My Profile")}
           onLogout={signOut}
           onMenuClick={() => setSidebarOpen((open) => !open)}

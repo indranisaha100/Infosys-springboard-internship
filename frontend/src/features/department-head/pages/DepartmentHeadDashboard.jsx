@@ -5,6 +5,8 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
 import NotificationComposer from "../../../shared/components/NotificationComposer";
+import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
+import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 import "../styles/DepartmentHeadDashboard.css";
 
 const NAV_ITEMS = [
@@ -117,6 +119,7 @@ export default function DepartmentHeadDashboard() {
       return null;
     }
   }, []);
+  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(sessionUser));
 
   async function loadDashboard() {
     setLoading(true);
@@ -321,6 +324,7 @@ export default function DepartmentHeadDashboard() {
             >
               <SidebarIcon label={item.label} />
               {item.label}
+              {item.id === "notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}
             </button>
           ))}
         </nav>
@@ -347,6 +351,7 @@ export default function DepartmentHeadDashboard() {
           title="Department Dashboard"
           name={departmentHeadName}
           initials={departmentHeadInitials}
+          notificationCount={notificationCount}
           onLogout={logout}
           onMenuClick={() => setSidebarOpen((open) => !open)}
           menuExpanded={sidebarOpen}
@@ -1171,7 +1176,7 @@ export default function DepartmentHeadDashboard() {
                   <p className="dh-muted-note">Recipients are limited to approved employees and mentors in your assigned department.</p>
                 </section>
               </div>
-              <NotificationInbox roleLabel="Department workspace" />
+              <NotificationInbox roleLabel="Department workspace" onUnreadCountChange={setNotificationCount} />
             </>
           )}
 
