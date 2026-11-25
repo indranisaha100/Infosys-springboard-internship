@@ -29,6 +29,7 @@ export default function MenteeDetailPanel({ email, onClose, onSchedule, onAssign
             {detail.subjects?.map((s) => <span key={s} className="rounded-full bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-700">{s}</span>)}
             <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{detail.status}</span>
           </div>
+          <section><h4 className="mb-2 text-sm font-semibold">Employee profile skills</h4><p className="m-0 rounded-lg bg-slate-50 p-3 text-slate-600">{detail.profileSkills || "The employee has not added profile skills yet."}</p></section>
           <div className="flex gap-2"><button onClick={() => onSchedule(email)} className="rounded-lg bg-blue-600 px-3 py-2 font-semibold text-white">Schedule session</button><button onClick={() => onAssign(email)} className="rounded-lg border border-blue-200 px-3 py-2 font-semibold text-blue-600">Assign course</button></div>
 
           <section><h4 className="mb-2 text-sm font-semibold">Skills vs target</h4>

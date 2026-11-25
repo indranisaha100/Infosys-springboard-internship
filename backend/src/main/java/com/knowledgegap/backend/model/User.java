@@ -35,6 +35,9 @@ public class User {
     @Column(length = 2000)
     private String expertise;
 
+    @Column(length = 2000)
+    private String skills;
+
     private String status = "APPROVED";
 
     @Column(length = 1000)

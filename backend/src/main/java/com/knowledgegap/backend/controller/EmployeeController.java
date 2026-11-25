@@ -278,6 +278,24 @@ public ResponseEntity<?> chat(
         };
     }
 
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody Map<String, String> input) {
+        Optional<User> employee = authenticatedEmployee(authorization);
+        if (employee.isEmpty()) return unauthorized();
+        if (input == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Profile skills are required."));
+        }
+        String skills = input.getOrDefault("skills", "").trim();
+        if (skills.length() > 2000) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Profile skills must be 2000 characters or fewer."));
+        }
+        User user = employee.get();
+        user.setSkills(skills);
+        return ResponseEntity.ok(Map.of("user", userSummary(userRepository.save(user))));
+    }
+
     private List<AssessmentScore> latestAssessment(User user) {
         List<AssessmentScore> all = assessmentScoreRepository.findByEmployeeEmailOrderBySubmittedAtDesc(user.getEmail());
         if (all.isEmpty()) return List.of();
@@ -538,6 +556,7 @@ public ResponseEntity<?> chat(
         summary.put("firstName", user.getFirstName());
         summary.put("lastName", user.getLastName());
         summary.put("role", user.getRole());
+        summary.put("skills", user.getSkills() == null ? "" : user.getSkills());
         return summary;
     }
 

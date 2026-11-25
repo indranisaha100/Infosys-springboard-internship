@@ -351,7 +351,8 @@ public class MentorController {
 
         private Map<String, Object> employeeSummary(com.knowledgegap.backend.model.User user) {
                 return Map.of("name", displayName(user), "initials", initials(user), "email", safe(user.getEmail()),
-                                "role", safe(user.getRole()));
+                                "role", safe(user.getRole()),
+                                "profileSkills", safe(user.getSkills()));
         }
 
         private String displayName(com.knowledgegap.backend.model.User user) {

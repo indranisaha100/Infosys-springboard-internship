@@ -5,6 +5,7 @@ import com.knowledgegap.backend.model.LearningResource;
 import com.knowledgegap.backend.model.MentoringSession;
 import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.repository.LearningResourceRepository;
+import com.knowledgegap.backend.repository.UserRepository;
 import com.knowledgegap.backend.security.CurrentUser;
 import com.knowledgegap.backend.service.*;
 import org.springframework.http.HttpStatus;
@@ -23,21 +24,48 @@ import java.util.Optional;
 @RequestMapping("/api/mentor")
 public class MentorWorkspaceController {
     private final CurrentUser currentUser;
+    private final UserRepository users;
     private final MentorDashboardService dashboard;
     private final MentorAssignmentService assignments;
     private final MentoringSessionService sessions;
     private final LearningProgressService learning;
     private final LearningResourceRepository resources;
 
-    public MentorWorkspaceController(CurrentUser currentUser, MentorDashboardService dashboard,
+    public MentorWorkspaceController(CurrentUser currentUser, UserRepository users, MentorDashboardService dashboard,
             MentorAssignmentService assignments, MentoringSessionService sessions,
             LearningProgressService learning, LearningResourceRepository resources) {
         this.currentUser = currentUser;
+        this.users = users;
         this.dashboard = dashboard;
         this.assignments = assignments;
         this.sessions = sessions;
         this.learning = learning;
         this.resources = resources;
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> profile(@RequestHeader(value = "Authorization", required = false) String auth) {
+        Optional<User> mentor = mentor(auth);
+        if (mentor.isEmpty()) return unauthorized();
+        return ResponseEntity.ok(mentorProfile(mentor.get()));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            @RequestBody Map<String, String> body) {
+        Optional<User> mentor = mentor(auth);
+        if (mentor.isEmpty()) return unauthorized();
+        if (body == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Mentor expertise is required."));
+        }
+        String expertise = str(body.get("expertise"));
+        if (expertise.length() > 2000) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Mentor expertise must be 2000 characters or fewer."));
+        }
+        mentor.get().setExpertise(expertise);
+        return ResponseEntity.ok(mentorProfile(users.save(mentor.get())));
     }
 
     @GetMapping("/mentees")
@@ -141,6 +169,14 @@ public class MentorWorkspaceController {
 
     private String str(Object o) {
         return o == null ? "" : String.valueOf(o).trim();
+    }
+
+    private Map<String, Object> mentorProfile(User user) {
+        return Map.of(
+                "firstName", str(user.getFirstName()),
+                "lastName", str(user.getLastName()),
+                "email", str(user.getEmail()),
+                "expertise", str(user.getExpertise()));
     }
 
     private Optional<User> mentor(String auth) {

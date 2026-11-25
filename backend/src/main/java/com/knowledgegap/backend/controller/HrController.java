@@ -132,6 +132,7 @@ public class HrController {
                         ? "Unassigned" : user.getDepartment(),
                 "role", user.getRequestedRole() == null ? "Employee"
                         : user.getRequestedRole().replace("ROLE_", "").replace('_', ' '),
+                "skills", user.getSkills() == null ? "" : user.getSkills(),
                 "status", user.getStatus() == null ? "APPROVED" : user.getStatus());
     }
 

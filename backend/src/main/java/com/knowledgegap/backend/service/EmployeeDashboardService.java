@@ -279,6 +279,7 @@ public class EmployeeDashboardService {
         s.put("lastName", user.getLastName());
         s.put("role", user.getRole());
         s.put("department", user.getDepartment());
+        s.put("skills", user.getSkills() == null ? "" : user.getSkills());
         return s;
     }
 }

@@ -11,11 +11,13 @@ import MentorSessionsPage from "../components/MentorSessionsPage";
 import MentorLearningProgress from "../components/MentorLearningProgress";
 import MenteeDetailPanel from "../components/MenteeDetailPanel";
 import AssignCourseDialog from "../components/AssignCourseDialog";
+import MentorProfilePage from "../components/MentorProfilePage";
 import { formatDateTime, relativeTime } from "../../../shared/utils/sessions";
 import { clampPercent, progressColor } from "../utils/progressColors";
 
 const navigation = [
   ["grid", "Dashboard"],
+  ["profile", "My Profile"],
   ["users", "My Team"],
   ["gap", "Team Skill Gap Analysis"],
   ["chart", "Team Skill Gap Heatmap"],
@@ -317,6 +319,8 @@ export default function MentorDashboardPage() {
         {dataError && <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><span>{authError ? "Your mentor session is missing or expired. Sign in again to load live data." : `Live mentor data could not be loaded: ${dataError}`}</span><button className="font-semibold underline" onClick={() => authError ? signOut() : window.location.reload()}>{authError ? "Sign in" : "Retry"}</button></div>}
         {(activeItem === "Messages" || activeItem === "Messages / Chatbox")
           ? <MessagesPanel />
+          : activeItem === "My Profile"
+            ? <MentorProfilePage />
           : activeItem === "Notifications"
             ? <NotificationInbox roleLabel="Mentor workspace" onUnreadCountChange={setNotificationCount} />
             : activeItem === "Learning Progress"
@@ -346,11 +350,11 @@ export default function MentorDashboardPage() {
             </div>
             {data.menteeCount === 0 && <p className="mb-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">No mentees are assigned to you yet. HR assigns mentees from <b>HR workspace → Mentor Assignments</b>, and you can accept employee requests under Mentorship Requests.</p>}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] border-collapse text-left text-xs">
-                <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Employee name</th><th className="px-3 py-3 font-semibold">Department</th><th className="px-3 py-3 font-semibold">Primary skill</th><th className="px-3 py-3 font-semibold">Knowledge gap</th><th className="px-3 py-3 font-semibold">Progress</th><th className="px-3 py-3 font-semibold">Status</th><th className="px-3 py-3 font-semibold">Action</th></tr></thead>
+              <table className="w-full min-w-[980px] border-collapse text-left text-xs">
+                <thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400"><th className="px-3 py-3 font-semibold">Employee name</th><th className="px-3 py-3 font-semibold">Department</th><th className="px-3 py-3 font-semibold">Profile skills</th><th className="px-3 py-3 font-semibold">Primary skill</th><th className="px-3 py-3 font-semibold">Knowledge gap</th><th className="px-3 py-3 font-semibold">Progress</th><th className="px-3 py-3 font-semibold">Status</th><th className="px-3 py-3 font-semibold">Action</th></tr></thead>
                 <tbody>{mentees.map((mentee) => <tr key={mentee.email} className="border-b border-slate-50 last:border-0">
                   <td className="px-3 py-4"><div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[10px] font-bold text-blue-600">{mentee.initials}</span><strong>{mentee.name}</strong></div></td>
-                  <td className="px-3 py-4 text-slate-500">{mentee.department}</td><td className="px-3 py-4 font-medium text-blue-900">{mentee.skill}</td><td className="px-3 py-4 text-slate-500">{mentee.gap}</td>
+                  <td className="px-3 py-4 text-slate-500">{mentee.department}</td><td className="px-3 py-4 text-slate-600">{mentee.profileSkills || "Not added yet"}</td><td className="px-3 py-4 font-medium text-blue-900">{mentee.skill}</td><td className="px-3 py-4 text-slate-500">{mentee.gap}</td>
                   <td className="px-3 py-4"><div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-slate-100"><div className={`h-full rounded-full ${progressColor(mentee.progress)}`} style={{ width: `${clampPercent(mentee.progress)}%` }} /></div><span className="text-[10px] font-semibold">{clampPercent(mentee.progress)}%</span></div></td>
                   <td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${mentee.status === "Completed" ? "bg-emerald-50 text-emerald-700" : mentee.status === "Needs Attention" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{mentee.status}</span></td>
                   <td className="px-3 py-4"><button className="font-semibold text-blue-600 hover:text-blue-800" onClick={() => setSelectedMentee(mentee.email)}>View</button></td>

@@ -52,7 +52,76 @@ function StatCard({ icon, label, value, note, tone }) {
   );
 }
 
+function EmployeeProfile({ user, loading }) {
+  const [skills, setSkills] = useState(user?.skills || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    setSkills(user?.skills || "");
+  }, [user?.skills]);
+
+  async function saveProfile(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const result = await request("/employee/profile", {
+        method: "PUT",
+        body: JSON.stringify({ skills }),
+      });
+      setSkills(result.user?.skills || "");
+      setSuccess("Your skills were saved. HR and your assigned mentor can now see them.");
+    } catch (saveError) {
+      setError(saveError.message || "Your profile could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
+      <div className="mb-5">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / My Profile</p>
+        <h1 className="m-0 text-2xl font-medium text-blue-950">My Profile</h1>
+        <p className="mt-2 text-xs text-slate-500">Add the skills you use at work. HR and your assigned mentor can view this list.</p>
+      </div>
+      {loading ? <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Loading your profile…</p> : (
+        <form onSubmit={saveProfile} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Name</strong><p className="mb-0 mt-1 text-slate-600">{user?.firstName} {user?.lastName || ""}</p></div>
+            <div className="rounded-lg bg-slate-50 p-4 text-xs"><strong>Email</strong><p className="mb-0 mt-1 text-slate-600">{user?.email}</p></div>
+          </div>
+          <label className="block text-xs font-semibold text-slate-700">
+            Your skills
+            <textarea
+              value={skills}
+              onChange={(event) => setSkills(event.target.value)}
+              maxLength={2000}
+              rows={4}
+              placeholder="For example: Java, SQL, React, Project Management"
+              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-normal outline-none focus:border-blue-500"
+            />
+            <span className="mt-1 block font-normal text-slate-500">Separate skills with commas. Maximum 2000 characters.</span>
+          </label>
+          {error && <p className="text-xs text-rose-700" role="alert">{error}</p>}
+          {success && <p className="text-xs text-emerald-700" role="status">{success}</p>}
+          <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">
+            {saving ? "Saving…" : "Save profile"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function SectionPage({ activeItem, data, loading }) {
+  if (activeItem === "My Profile") {
+    return <EmployeeProfile user={data?.user} loading={loading} />;
+  }
+
   const titles = {
     "My Skills": "Track your capabilities and role readiness.",
     "Knowledge Gap": "Prioritize the skills that will have the biggest impact.",

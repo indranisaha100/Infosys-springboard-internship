@@ -179,11 +179,9 @@ export default function HRDashboardPage() {
   const [employees, setEmployees] = useState([]);
   const [mentors, setMentors] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [mentorExpertise, setMentorExpertise] = useState({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [savingMentor, setSavingMentor] = useState(null);
   const [notificationRecipients, setNotificationRecipients] = useState([]);
   const [notificationRecipientError, setNotificationRecipientError] = useState("");
   const [error, setError] = useState("");
@@ -208,7 +206,6 @@ export default function HRDashboardPage() {
     if (results[2].status === "fulfilled") {
       const result = Array.isArray(results[2].value) ? results[2].value : [];
       setMentors(result);
-      setMentorExpertise(Object.fromEntries(result.map((mentor) => [mentor.id, mentor.expertise || ""])));
     } else failures.push(`Mentor directory: ${displayError(results[2].reason)}`);
     if (results[3].status === "fulfilled") setRequests(results[3].value || []);
     else failures.push(`Account requests: ${displayError(results[3].reason)}`);
@@ -228,6 +225,18 @@ export default function HRDashboardPage() {
         setNotificationRecipientError("");
       })
       .catch((loadError) => setNotificationRecipientError(displayError(loadError)));
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection === "Employee Directory") {
+      request("/hr/employees")
+        .then((result) => setEmployees(Array.isArray(result) ? result : result.employees || []))
+        .catch((loadError) => setError(displayError(loadError)));
+    } else if (activeSection === "Mentor Directory") {
+      request("/hr/mentors")
+        .then((result) => setMentors(Array.isArray(result) ? result : []))
+        .catch((loadError) => setError(displayError(loadError)));
+    }
   }, [activeSection]);
 
   const filteredEmployees = employees.filter((employee) =>
@@ -256,26 +265,6 @@ export default function HRDashboardPage() {
       setSuccess(`Registration request ${outcome[action] || "updated"}.`);
     } catch (requestError) {
       setError(displayError(requestError));
-    }
-  }
-
-  async function updateMentorExpertise(id) {
-    setSavingMentor(id);
-    setError("");
-    setSuccess("");
-    try {
-      const updated = await request(`/hr/mentors/${id}/expertise`, {
-        method: "PUT",
-        body: JSON.stringify({ expertise: mentorExpertise[id] || "" }),
-      });
-      setMentors((current) => current.map((mentor) => mentor.id === id
-        ? { ...mentor, expertise: updated.expertise || mentorExpertise[id] || "" }
-        : mentor));
-      setSuccess("Mentor expertise saved.");
-    } catch (requestError) {
-      setError(displayError(requestError));
-    } finally {
-      setSavingMentor(null);
     }
   }
 
@@ -364,13 +353,13 @@ export default function HRDashboardPage() {
           ) : activeSection === "Employee Directory" ? (
             <section className="rounded-2xl border border-[#A3E4D7] bg-white p-5">
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="m-0 text-lg font-semibold text-[#0F5257]">Employee directory</h2><p className="mt-1 text-xs text-slate-500">{employees.length} approved employee accounts</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employees…" className="h-10 rounded-xl border border-[#A3E4D7] bg-[#f8fcfa] px-3 text-xs outline-none focus:border-[#50C878]"/></div>
-              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filteredEmployees.map((employee) => <article key={employee.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F8F5] text-sm font-bold text-[#0F5257]">{(employee.name || employee.email || "E").slice(0, 1).toUpperCase()}</span><div><strong className="text-sm">{employee.name || employee.email}</strong><p className="mt-1 text-xs text-slate-500">{employee.email}</p></div></div><p className="mb-0 mt-4 text-xs text-slate-600">{employee.department || "Unassigned"} · {employee.role || "Employee"}</p><small className="mt-2 block text-[10px] text-slate-400">Status: {employee.status || "APPROVED"}</small></article>)}</div>
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filteredEmployees.map((employee) => <article key={employee.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F8F5] text-sm font-bold text-[#0F5257]">{(employee.name || employee.email || "E").slice(0, 1).toUpperCase()}</span><div><strong className="text-sm">{employee.name || employee.email}</strong><p className="mt-1 text-xs text-slate-500">{employee.email}</p></div></div><p className="mb-0 mt-4 text-xs text-slate-600">{employee.department || "Unassigned"} · {employee.role || "Employee"}</p><p className="mb-0 mt-3 text-xs text-slate-600"><strong>Profile skills:</strong> {employee.skills || "Not added yet"}</p><small className="mt-2 block text-[10px] text-slate-400">Status: {employee.status || "APPROVED"}</small></article>)}</div>
               {!filteredEmployees.length && <p className="mt-5 rounded-xl bg-[#E8F8F5] p-8 text-center text-sm text-slate-500">No employees matched your search.</p>}
             </section>
           ) : activeSection === "Mentor Directory" ? (
             <section className="rounded-2xl border border-[#A3E4D7] bg-white p-5">
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="m-0 text-lg font-semibold text-[#0F5257]">Mentor directory</h2><p className="mt-1 text-xs text-slate-500">Maintain mentor expertise so the plan generator can make skill-based matches.</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search mentors…" className="h-10 rounded-xl border border-[#A3E4D7] bg-[#f8fcfa] px-3 text-xs outline-none focus:border-[#50C878]"/></div>
-              <div className="mt-5 grid gap-3 md:grid-cols-2">{filteredMentors.map((mentor) => <article key={mentor.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F8F5] text-sm font-bold text-[#0F5257]">{(mentor.name || mentor.email || "M").slice(0, 1).toUpperCase()}</span><div><strong className="text-sm">{mentor.name || mentor.email}</strong><p className="mt-1 text-xs text-slate-500">{mentor.email}</p></div></div><p className="mb-3 mt-3 text-xs text-slate-500">{mentor.department || "No department assigned"}</p><label className="block text-xs font-semibold text-slate-600">Expertise <span className="font-normal text-slate-400">(comma-separated skills)</span><input value={mentorExpertise[mentor.id] || ""} onChange={(event) => setMentorExpertise((current) => ({ ...current, [mentor.id]: event.target.value }))} placeholder="Java, SQL, React" className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-normal outline-none focus:border-[#50C878]"/></label><button onClick={() => updateMentorExpertise(mentor.id)} disabled={savingMentor === mentor.id} className="mt-3 rounded-lg bg-[#0F5257] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{savingMentor === mentor.id ? "Saving…" : "Save expertise"}</button></article>)}</div>
+              <div className="mt-5 grid gap-3 md:grid-cols-2">{filteredMentors.map((mentor) => <article key={mentor.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F8F5] text-sm font-bold text-[#0F5257]">{(mentor.name || mentor.email || "M").slice(0, 1).toUpperCase()}</span><div><strong className="text-sm">{mentor.name || mentor.email}</strong><p className="mt-1 text-xs text-slate-500">{mentor.email}</p></div></div><p className="mb-2 mt-3 text-xs text-slate-500">{mentor.department || "No department assigned"}</p><p className="mb-0 text-xs text-slate-700"><strong>Expertise:</strong> {mentor.expertise || "Not added yet"}</p><p className="mb-0 mt-2 text-[10px] text-slate-500">Mentors maintain their expertise in My Profile.</p></article>)}</div>
               {!filteredMentors.length && <p className="mt-5 rounded-xl bg-[#E8F8F5] p-8 text-center text-sm text-slate-500">No mentors matched your search.</p>}
             </section>
           ) : activeSection === "Mentor Assignments" ? (

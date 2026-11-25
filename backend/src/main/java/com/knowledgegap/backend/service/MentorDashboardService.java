@@ -165,6 +165,7 @@ public class MentorDashboardService {
         row.put("initials", initials(m.user()));
         row.put("email", m.user().getEmail());
         row.put("department", blank(m.user().getDepartment()) ? "Unassigned" : m.user().getDepartment());
+        row.put("profileSkills", blank(m.user().getSkills()) ? "" : m.user().getSkills());
         row.put("subjects", m.subjects());
         row.put("skill", !m.subjects().isEmpty() ? String.join(", ", m.subjects()) : gaps.isEmpty() ? "—" : gaps.get(0).topic());
         row.put("gap", m.latest().isEmpty() ? "Assessment pending"
