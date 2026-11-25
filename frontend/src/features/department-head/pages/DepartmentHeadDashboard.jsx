@@ -5,8 +5,6 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
 import NotificationComposer from "../../../shared/components/NotificationComposer";
-import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
-import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 import "../styles/DepartmentHeadDashboard.css";
 
 const NAV_ITEMS = [
@@ -14,6 +12,7 @@ const NAV_ITEMS = [
   { id: "overview", label: "Department Overview" },
   { id: "matrix", label: "Department Skill Matrix" },
   { id: "heatmap", label: "Gap Heatmap" },
+  { id: "assessments", label: "Assessment Details" },
   { id: "capability", label: "Workforce Capability" },
   { id: "learning", label: "Learning & Mentoring" },
   { id: "risks", label: "Risk & Priority Alerts" },
@@ -23,10 +22,32 @@ const NAV_ITEMS = [
 ];
 
 function displayName(person) {
-  return [
+  return person?.name || [
     person?.firstName,
     person?.lastName,
   ].filter(Boolean).join(" ") || person?.email || "Unknown";
+}
+
+function heatClass(score) {
+  if (score == null || score < 0) return "none";
+  if (score < 40) return "critical";
+  if (score < 70) return "warning";
+  return "good";
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(rows, fileName) {
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function dateLabel(value) {
@@ -88,6 +109,7 @@ function StatusPill({ status }) {
     normalized.includes("below")
       ? "critical"
       : normalized.includes("attention") ||
+        normalized.includes("improvement") ||
         normalized.includes("progress") ||
         normalized.includes("pending")
       ? "warning"
@@ -109,6 +131,7 @@ export default function DepartmentHeadDashboard() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const sessionUser = useMemo(() => {
     try {
@@ -119,7 +142,6 @@ export default function DepartmentHeadDashboard() {
       return null;
     }
   }, []);
-  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(sessionUser));
 
   async function loadDashboard() {
     setLoading(true);
@@ -161,66 +183,55 @@ export default function DepartmentHeadDashboard() {
     navigate("/login", { replace: true });
   }
 
-  function exportCsv() {
+  function exportReport() {
     if (!data) return;
 
+    const topics = (data.skillCoverage || []).map((skill) => skill.name);
     const rows = [
       ["Department", data.department?.name || ""],
+      ["Department Head", displayName(data.departmentHead)],
+      ["Generated", new Date().toLocaleString("en-IN")],
       [],
-      [
-        "Skill / Topic",
-        "Average assessment score",
-        "Assessed employees",
-        "Employees needing attention",
-      ],
-      ...(data.skills || []).map((skill) => [
-        skill.name,
-        skill.averageScore,
-        skill.assessedEmployees,
-        skill.employeesAtRisk,
+      ["SUMMARY"],
+      ["Assigned employees", data.summary?.totalEmployees ?? 0],
+      ["Employees assessed", data.summary?.assessedEmployees ?? 0],
+      ["Employees with gaps (<70%)", data.summary?.employeesWithGaps ?? 0],
+      ["Critical results (<40%)", data.summary?.criticalGaps ?? 0],
+      ["Average score (%)", data.summary?.averageScore ?? 0],
+      [],
+      ["EMPLOYEES"],
+      ["Employee", "Email", "Assessments taken", "Average score (%)", "Status"],
+      ...(data.employees || []).map((employee) => [
+        displayName(employee), employee.email, employee.assessmentCount,
+        employee.averageScore, employee.status,
       ]),
       [],
-      [
-        "Employee",
-        "Email",
-        "Topic",
-        "Score",
-        "Status",
-        "Assessment date",
-      ],
+      ["SKILL COVERAGE"],
+      ["Skill / topic", "Average score (%)", "Employees below 70%", "Assessment records"],
+      ...(data.skillCoverage || []).map((skill) => [
+        skill.name, skill.averageScore, skill.affectedEmployees, skill.assessmentCount,
+      ]),
+      [],
+      ["SKILL GAP HEATMAP (latest score %, blank = not assessed)"],
+      ["Employee", "Email", ...topics],
+      ...(data.heatmap || []).map((row) => [
+        row.employee, row.email,
+        ...topics.map((topic) => {
+          const score = row.skills?.[topic];
+          return score == null || score < 0 ? "" : score;
+        }),
+      ]),
+      [],
+      ["ASSESSMENT DETAILS"],
+      ["Employee", "Email", "Skill", "Score (%)", "Correct", "Total questions", "Result", "Submitted"],
       ...(data.assessments || []).map((item) => [
-        item.employeeName,
-        item.email,
-        item.topic,
-        item.score,
-        item.status,
-        item.submittedAt,
+        item.employee, item.email, item.topic, item.score, item.right,
+        item.total, item.status, item.submittedAt || "",
       ]),
     ];
 
-    const csv = rows
-      .map((row) =>
-        row
-          .map(
-            (value) =>
-              `"${String(value ?? "").replace(/"/g, '""')}"`
-          )
-          .join(",")
-      )
-      .join("\r\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "department-capability-report.csv";
-    link.click();
-
-    URL.revokeObjectURL(url);
+    const slug = (data.department?.name || "department").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    downloadCsv(rows, `${slug}-team-assessment-report.csv`);
   }
 
   if (loading) {
@@ -261,23 +272,51 @@ export default function DepartmentHeadDashboard() {
   const summary = data?.summary || {};
   const department = data?.department || {};
   const employees = data?.employees || [];
-  const skills = data?.skills || [];
   const assessments = data?.assessments || [];
-  const alerts = data?.riskAlerts || [];
+  const coverage = data?.skillCoverage || [];
   const heatmap = data?.heatmap || [];
   const training = data?.learning || {};
   const mentoring = data?.mentoring || {};
   const programmes = data?.programmes || [];
 
+  const q = search.toLowerCase();
+
   const filteredEmployees = employees.filter((employee) =>
-    `${displayName(employee)} ${employee.email} ${employee.role}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+    `${displayName(employee)} ${employee.email}`.toLowerCase().includes(q)
   );
 
-  const filteredSkills = skills.filter((skill) =>
-    skill.name.toLowerCase().includes(search.toLowerCase())
+  const filteredCoverage = coverage.filter((skill) =>
+    skill.name.toLowerCase().includes(q)
   );
+
+  const filteredAssessments = assessments.filter((item) =>
+    `${item.employee} ${item.email} ${item.topic}`.toLowerCase().includes(q)
+  );
+
+  const priorityTopics = [...coverage].sort(
+    (a, b) => b.affectedEmployees - a.affectedEmployees || a.averageScore - b.averageScore
+  );
+
+  // Latest result per employee and topic that is below 70%, lowest first.
+  const latestDates = {};
+  assessments.forEach((item) => {
+    const key = `${item.email}|${item.topic}`.toLowerCase();
+    if (!latestDates[key]) latestDates[key] = item.submittedAt;
+  });
+  const riskRows = heatmap
+    .flatMap((row) =>
+      Object.entries(row.skills || {})
+        .filter(([, score]) => score >= 0 && score < 70)
+        .map(([topic, score]) => ({
+          employee: row.employee,
+          email: row.email,
+          topic,
+          score,
+          status: score < 40 ? "Critical" : "Needs attention",
+          submittedAt: latestDates[`${row.email}|${topic}`.toLowerCase()],
+        }))
+    )
+    .sort((a, b) => a.score - b.score);
 
   const departmentHead = data?.departmentHead || sessionUser || {};
   const departmentHeadName = displayName(departmentHead);
@@ -319,12 +358,12 @@ export default function DepartmentHeadDashboard() {
                 setActiveSection(item.id);
                 setSidebarOpen(false);
                 setSearch("");
+                setSelectedEmployee(null);
               }}
               type="button"
             >
               <SidebarIcon label={item.label} />
               {item.label}
-              {item.id === "notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}
             </button>
           ))}
         </nav>
@@ -351,7 +390,6 @@ export default function DepartmentHeadDashboard() {
           title="Department Dashboard"
           name={departmentHeadName}
           initials={departmentHeadInitials}
-          notificationCount={notificationCount}
           onLogout={logout}
           onMenuClick={() => setSidebarOpen((open) => !open)}
           menuExpanded={sidebarOpen}
@@ -364,137 +402,72 @@ export default function DepartmentHeadDashboard() {
               <section className="dh-hero">
                 <div>
                   <span>DEPARTMENT INTELLIGENCE</span>
-
                   <h1>
-                    Welcome back,{" "}
-                    {data?.departmentHead?.firstName ||
-                      sessionUser?.firstName ||
-                      "Department Head"}.
+                    Welcome back, {departmentHead.firstName || "Department Head"}.
                   </h1>
-
                   <p>
-                    Review workforce capability, skill assessment
-                    trends and learning activity across{" "}
-                    {department.name || "your department"}.
+                    Review capability, assessments and learning activity for the
+                    employees HR assigned to you in {department.name || "your department"}.
                   </p>
                 </div>
-
-                <div className="dh-hero-symbol">
-                  ◫
-                </div>
+                <div className="dh-hero-symbol">◫</div>
               </section>
+
+              {!employees.length && (
+                <section className="dh-panel">
+                  <EmptyState>
+                    No employees are assigned to you yet. Ask HR to assign employees to your department.
+                  </EmptyState>
+                </section>
+              )}
 
               <SectionTitle
                 eyebrow="AT A GLANCE"
                 title="Department Overview"
-                description="Live figures calculated from records associated with your department."
+                description="Live figures for your assigned employees only."
               />
 
               <div className="dh-metrics-grid">
-                <MetricCard
-                  icon="♙"
-                  label="Department Workforce"
-                  value={summary.totalWorkforce}
-                  hint="Approved department accounts"
-                  tone="blue"
-                />
-
-                <MetricCard
-                  icon="▤"
-                  label="Employees"
-                  value={summary.totalEmployees}
-                  hint="Employee accounts"
-                  tone="violet"
-                />
-
-                <MetricCard
-                  icon="⚑"
-                  label="Employees Needing Attention"
-                  value={summary.employeesWithGaps}
-                  hint="Latest topic score below 70%"
-                  tone="orange"
-                />
-
-                <MetricCard
-                  icon="!"
-                  label="Critical Assessment Results"
-                  value={summary.criticalGaps}
-                  hint="Latest topic score below 40%"
-                  tone="red"
-                />
+                <MetricCard icon="♙" label="Assigned Employees" value={summary.totalEmployees} hint="Employees assigned by HR" tone="blue" />
+                <MetricCard icon="✓" label="Employees Assessed" value={summary.assessedEmployees} hint="At least one assessment submitted" tone="violet" />
+                <MetricCard icon="⚑" label="Employees With Skill Gaps" value={summary.employeesWithGaps} hint="Latest topic score below 70%" tone="orange" />
+                <MetricCard icon="!" label="Critical Skill Gaps" value={summary.criticalGaps} hint="Latest topic score below 40%" tone="red" />
               </div>
 
               <div className="dh-two-column">
                 <section className="dh-panel">
                   <SectionTitle
                     title="Assessment Performance"
-                    description="Average of the latest recorded score for each employee and topic."
+                    description="Average of the latest score for each employee and topic."
                   />
-
                   <div className="dh-score-highlight">
-                    <strong>
-                      {summary.averageScore ?? 0}%
-                    </strong>
-                    <span>Department average</span>
+                    <strong>{summary.averageScore ?? 0}%</strong>
+                    <span>Team average</span>
                   </div>
-
                   <div className="dh-progress-track">
-                    <span
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.max(0, summary.averageScore || 0)
-                        )}%`,
-                      }}
-                    />
+                    <span style={{ width: `${Math.min(100, Math.max(0, summary.averageScore || 0))}%` }} />
                   </div>
-
                   <div className="dh-panel-foot">
                     <div>
-                      <strong>
-                        {summary.assessedEmployees || 0}
-                      </strong>
+                      <strong>{summary.assessedEmployees || 0}</strong>
                       <span>Employees assessed</span>
                     </div>
-
                     <div>
-                      <strong>
-                        {summary.totalAssessments || 0}
-                      </strong>
-                      <span>Latest topic results</span>
+                      <strong>{summary.totalAssessments || 0}</strong>
+                      <span>Assessments submitted</span>
                     </div>
                   </div>
                 </section>
 
                 <section className="dh-panel">
-                  <SectionTitle
-                    title="Learning Snapshot"
-                    description="Based on saved learning-enrollment records."
-                  />
-
+                  <SectionTitle title="Learning Snapshot" description="Based on saved learning-enrollment records." />
                   <div className="dh-learning-numbers">
-                    <div>
-                      <strong>
-                        {training.totalEnrollments || 0}
-                      </strong>
-                      <span>Enrollments</span>
-                    </div>
-
-                    <div>
-                      <strong>{training.completed || 0}</strong>
-                      <span>Completed</span>
-                    </div>
-
-                    <div>
-                      <strong>{training.inProgress || 0}</strong>
-                      <span>In progress</span>
-                    </div>
+                    <div><strong>{training.totalEnrollments || 0}</strong><span>Enrollments</span></div>
+                    <div><strong>{training.completed || 0}</strong><span>Completed</span></div>
+                    <div><strong>{training.inProgress || 0}</strong><span>In progress</span></div>
                   </div>
-
                   <p className="dh-muted-note">
-                    Training participation:{" "}
-                    {training.adoptionRate || 0}% of department
-                    employees have at least one enrollment.
+                    {training.adoptionRate || 0}% of your employees have at least one enrollment.
                   </p>
                 </section>
               </div>
@@ -502,41 +475,24 @@ export default function DepartmentHeadDashboard() {
               <section className="dh-panel">
                 <SectionTitle
                   title="Priority Skill Topics"
-                  description="Topics with the most latest assessment results below 70%."
+                  description="Topics with the most employees scoring below 70%."
                 />
-
-                {skills.length ? (
+                {priorityTopics.length ? (
                   <div className="dh-skill-bars">
-                    {skills.slice(0, 6).map((skill) => (
-                      <div
-                        className="dh-skill-row"
-                        key={skill.name}
-                      >
+                    {priorityTopics.slice(0, 6).map((skill) => (
+                      <div className="dh-skill-row" key={skill.name}>
                         <div>
                           <strong>{skill.name}</strong>
-                          <span>
-                            {skill.averageScore}% average ·{" "}
-                            {skill.employeesAtRisk} need attention
-                          </span>
+                          <span>{skill.averageScore}% average · {skill.affectedEmployees} below 70%</span>
                         </div>
-
                         <div className="dh-skill-track">
-                          <span
-                            style={{
-                              width: `${Math.max(
-                                0,
-                                Math.min(100, skill.averageScore)
-                              )}%`,
-                            }}
-                          />
+                          <span style={{ width: `${Math.max(0, Math.min(100, skill.averageScore))}%` }} />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <EmptyState>
-                    No assessment topic records were found for this department.
-                  </EmptyState>
+                  <EmptyState>No assessment results have been submitted by your employees yet.</EmptyState>
                 )}
               </section>
             </>
@@ -547,106 +503,100 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="PEOPLE & STRUCTURE"
                 title="Department Overview"
-                description={`Workforce records associated with ${department.name || "your department"}.`}
+                description={`Employees HR assigned to you in ${department.name || "your department"}.`}
               />
 
               <div className="dh-metrics-grid">
-                <MetricCard
-                  icon="♙"
-                  label="Employees"
-                  value={summary.totalEmployees}
-                  hint="Approved employee accounts"
-                />
-
-                <MetricCard
-                  icon="▣"
-                  label="Managers"
-                  value={summary.totalManagers}
-                  hint="Department manager accounts"
-                  tone="violet"
-                />
-
-                <MetricCard
-                  icon="✧"
-                  label="Mentors"
-                  value={summary.totalMentors}
-                  hint="Department mentor accounts"
-                  tone="orange"
-                />
-
-                <MetricCard
-                  icon="▤"
-                  label="Other roles"
-                  value={summary.otherRoles}
-                  hint="Other approved department accounts"
-                  tone="red"
-                />
+                <MetricCard icon="♙" label="Employees" value={summary.totalEmployees} hint="Assigned to you" />
+                <MetricCard icon="✧" label="Mentors" value={summary.totalMentors} hint="Mentors in your department" tone="orange" />
+                <MetricCard icon="✓" label="Assessed" value={summary.assessedEmployees} hint="Have submitted assessments" tone="violet" />
+                <MetricCard icon="◷" label="Not assessed" value={summary.notAssessed} hint="No assessment yet" tone="red" />
               </div>
 
               <section className="dh-panel">
-                <div className="dh-panel-heading">
-                  <SectionTitle
-                    title="Department workforce"
-                    description="Search and review department account directory."
-                  />
-
-                  <input
-                    className="dh-search"
-                    value={search}
-                    onChange={(event) =>
-                      setSearch(event.target.value)
-                    }
-                    placeholder="Search name, email or role…"
-                  />
-                </div>
-
-                {filteredEmployees.length ? (
-                  <div className="dh-table-wrap">
-                    <table className="dh-table">
-                      <thead>
-                        <tr>
-                          <th>Employee</th>
-                          <th>Email</th>
-                          <th>Platform role</th>
-                          <th>Assessment status</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {filteredEmployees.map((person) => (
-                          <tr key={person.email}>
-                            <td>
-                              <strong>
-                                {displayName(person)}
-                              </strong>
-                            </td>
-
-                            <td>{person.email}</td>
-
-                            <td>
-                              {person.role
-                                ?.replace("ROLE_", "")
-                                .replaceAll("_", " ")}
-                            </td>
-
-                            <td>
-                              <StatusPill
-                                status={
-                                  person.assessed
-                                    ? "Assessed"
-                                    : "Not assessed"
-                                }
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {selectedEmployee ? (
+                  <div>
+                    <button className="dh-primary-button" type="button" onClick={() => setSelectedEmployee(null)}>
+                      ← Back to employees
+                    </button>
+                    <SectionTitle
+                      title={displayName(selectedEmployee)}
+                      description={`${selectedEmployee.email} · ${selectedEmployee.assessmentCount} assessment(s) · average ${selectedEmployee.averageScore}%`}
+                    />
+                    <StatusPill status={selectedEmployee.status} />
+                    <div className="dh-table-wrap">
+                      <table className="dh-table">
+                        <thead>
+                          <tr><th>Skill</th><th>Score</th><th>Submitted</th></tr>
+                        </thead>
+                        <tbody>
+                          {selectedEmployee.assessments?.length ? (
+                            selectedEmployee.assessments.map((item, index) => (
+                              <tr key={`${item.topic}-${index}`}>
+                                <td>{item.topic}</td>
+                                <td><span className={`dh-heat-cell ${heatClass(item.score)}`}>{item.score}%</span></td>
+                                <td>{dateLabel(item.submittedAt)}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr><td colSpan="3">No assessments submitted yet.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 ) : (
-                  <EmptyState>
-                    No department accounts match your search.
-                  </EmptyState>
+                  <>
+                    <div className="dh-panel-heading">
+                      <SectionTitle
+                        title="Assigned employees"
+                        description="Search and open an employee to see individual assessment results."
+                      />
+                      <input
+                        className="dh-search"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search name or email…"
+                      />
+                    </div>
+
+                    {filteredEmployees.length ? (
+                      <div className="dh-table-wrap">
+                        <table className="dh-table">
+                          <thead>
+                            <tr>
+                              <th>Employee</th>
+                              <th>Email</th>
+                              <th>Assessments</th>
+                              <th>Average score</th>
+                              <th>Status</th>
+                              <th>Details</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredEmployees.map((person) => (
+                              <tr key={person.email}>
+                                <td><strong>{displayName(person)}</strong></td>
+                                <td>{person.email}</td>
+                                <td>{person.assessmentCount}</td>
+                                <td>{person.assessmentCount ? `${person.averageScore}%` : "—"}</td>
+                                <td><StatusPill status={person.status} /></td>
+                                <td>
+                                  <button className="dh-primary-button" type="button" onClick={() => setSelectedEmployee(person)}>
+                                    View
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <EmptyState>
+                        {employees.length ? "No employees match your search." : "No employees are assigned to you yet. Ask HR to assign employees."}
+                      </EmptyState>
+                    )}
+                  </>
                 )}
               </section>
             </>
@@ -657,61 +607,50 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="SKILL INTELLIGENCE"
                 title="Department Skill Matrix"
-                description="Assessment topic scores aggregated from the latest submission for each employee and topic. These are assessment results, not a formal job-role proficiency certification."
+                description="Skill coverage for your assigned employees, based on every assessment they submitted."
               />
 
               <section className="dh-panel">
                 <div className="dh-panel-heading">
                   <div>
                     <h3>Skill / topic coverage</h3>
-                    <p>
-                      Scores are calculated as right answers
-                      divided by total questions.
-                    </p>
+                    <p>Average score and the number of employees scoring below 70%.</p>
                   </div>
-
                   <input
                     className="dh-search"
                     value={search}
-                    onChange={(event) =>
-                      setSearch(event.target.value)
-                    }
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search topics…"
                   />
                 </div>
 
-                {filteredSkills.length ? (
+                {filteredCoverage.length ? (
                   <div className="dh-table-wrap">
                     <table className="dh-table">
                       <thead>
                         <tr>
                           <th>Topic</th>
                           <th>Average score</th>
-                          <th>Assessed employees</th>
-                          <th>Below 70%</th>
-                          <th>Below 40%</th>
+                          <th>Employees below 70%</th>
+                          <th>Assessment records</th>
                         </tr>
                       </thead>
-
                       <tbody>
-                        {filteredSkills.map((skill) => (
+                        {filteredCoverage.map((skill) => (
                           <tr key={skill.name}>
+                            <td><strong>{skill.name}</strong></td>
                             <td>
-                              <strong>{skill.name}</strong>
+                              <span className={`dh-heat-cell ${heatClass(skill.averageScore)}`}>{skill.averageScore}%</span>
                             </td>
-                            <td>{skill.averageScore}%</td>
-                            <td>{skill.assessedEmployees}</td>
-                            <td>{skill.employeesAtRisk}</td>
-                            <td>{skill.criticalEmployees}</td>
+                            <td>{skill.affectedEmployees}</td>
+                            <td>{skill.assessmentCount}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <EmptyState>
-                    No skill assessment data is available yet.
-                  </EmptyState>
+                  <EmptyState>No skill assessment data is available yet.</EmptyState>
                 )}
               </section>
             </>
@@ -722,53 +661,35 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="CAPABILITY GAPS"
                 title="Department Gap Heatmap"
-                description="Latest score per employee and topic. Grey means no assessment record; red is below 40%; amber is 40–69%; green is 70% or above."
+                description="Latest score per employee and topic. Grey means not assessed; red is below 40%; amber is 40–69%; green is 70% or above."
               />
 
               <section className="dh-panel">
-                {heatmap.length && skills.length ? (
+                {heatmap.length && coverage.length ? (
                   <div className="dh-table-wrap">
                     <table className="dh-table dh-heatmap-table">
                       <thead>
                         <tr>
                           <th>Employee</th>
-                          {skills.map((skill) => (
-                            <th key={skill.name}>
-                              {skill.name}
-                            </th>
-                          ))}
+                          {coverage.map((skill) => (<th key={skill.name}>{skill.name}</th>))}
                         </tr>
                       </thead>
-
                       <tbody>
                         {heatmap.map((person) => (
                           <tr key={person.email}>
                             <td>
-                              <strong>{person.name}</strong>
+                              <strong>{person.employee}</strong>
                               <small>{person.email}</small>
                             </td>
-
-                            {skills.map((skill) => {
-                              const score =
-                                person.scores?.[skill.name];
-
-                              const className =
-                                score == null
-                                  ? "none"
-                                  : score < 40
-                                  ? "critical"
-                                  : score < 70
-                                  ? "warning"
-                                  : "good";
-
+                            {coverage.map((skill) => {
+                              const score = person.skills?.[skill.name] ?? -1;
                               return (
                                 <td key={skill.name}>
                                   <span
-                                    className={`dh-heat-cell ${className}`}
+                                    className={`dh-heat-cell ${heatClass(score)}`}
+                                    title={`${skill.name}: ${score < 0 ? "Not assessed" : `${score}%`}`}
                                   >
-                                    {score == null
-                                      ? "—"
-                                      : `${score}%`}
+                                    {score < 0 ? "—" : `${score}%`}
                                   </span>
                                 </td>
                               );
@@ -780,7 +701,7 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 ) : (
                   <EmptyState>
-                    There are not enough assessment records to build the department heatmap.
+                    The heatmap appears once your assigned employees submit assessments.
                   </EmptyState>
                 )}
 
@@ -794,90 +715,97 @@ export default function DepartmentHeadDashboard() {
             </>
           )}
 
+          {activeSection === "assessments" && (
+            <>
+              <SectionTitle
+                eyebrow="ASSESSMENT RECORDS"
+                title="Assessment Details"
+                description="Every assessment submitted by the employees assigned to you."
+              />
+
+              <section className="dh-panel">
+                <div className="dh-panel-heading">
+                  <div>
+                    <h3>{filteredAssessments.length} assessment record(s)</h3>
+                  </div>
+                  <input
+                    className="dh-search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search employee or skill…"
+                  />
+                </div>
+
+                {filteredAssessments.length ? (
+                  <div className="dh-table-wrap">
+                    <table className="dh-table">
+                      <thead>
+                        <tr>
+                          <th>Employee</th>
+                          <th>Skill</th>
+                          <th>Score</th>
+                          <th>Correct / total</th>
+                          <th>Result</th>
+                          <th>Submitted</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAssessments.map((item, index) => (
+                          <tr key={`${item.email}-${item.topic}-${index}`}>
+                            <td>
+                              {item.employee}
+                              <small>{item.email}</small>
+                            </td>
+                            <td>{item.topic}</td>
+                            <td><strong>{item.score}%</strong></td>
+                            <td>{item.right} / {item.total}</td>
+                            <td><StatusPill status={item.status} /></td>
+                            <td>{dateLabel(item.submittedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <EmptyState>No assessment records found for your assigned employees.</EmptyState>
+                )}
+              </section>
+            </>
+          )}
+
           {activeSection === "capability" && (
             <>
               <SectionTitle
                 eyebrow="WORKFORCE STRENGTHS"
                 title="Workforce Capability"
-                description="Department strengths and improvement areas inferred from recorded assessment topics."
+                description="Strengths and improvement areas from the latest result per employee and topic."
               />
 
               <div className="dh-metrics-grid">
-                <MetricCard
-                  icon="✓"
-                  label="On-track topic results"
-                  value={summary.onTrackResults}
-                  hint="Latest scores of 70% or above"
-                  tone="blue"
-                />
-
-                <MetricCard
-                  icon="!"
-                  label="Needs attention"
-                  value={summary.attentionResults}
-                  hint="Latest scores from 40% to 69%"
-                  tone="orange"
-                />
-
-                <MetricCard
-                  icon="⚑"
-                  label="Critical results"
-                  value={summary.criticalGaps}
-                  hint="Latest scores below 40%"
-                  tone="red"
-                />
-
-                <MetricCard
-                  icon="◷"
-                  label="Not yet assessed"
-                  value={Math.max(
-                    0,
-                    summary.totalEmployees -
-                      summary.assessedEmployees
-                  )}
-                  hint="Employees without assessment records"
-                  tone="violet"
-                />
+                <MetricCard icon="✓" label="On-track results" value={summary.onTrackResults} hint="Latest scores of 70% or above" tone="blue" />
+                <MetricCard icon="!" label="Needs attention" value={summary.attentionResults} hint="Latest scores from 40% to 69%" tone="orange" />
+                <MetricCard icon="⚑" label="Critical results" value={summary.criticalResults} hint="Latest scores below 40%" tone="red" />
+                <MetricCard icon="◷" label="Not yet assessed" value={summary.notAssessed} hint="Employees without assessments" tone="violet" />
               </div>
 
               <section className="dh-panel">
-                <SectionTitle
-                  title="Capability by topic"
-                  description="Average score and number of affected employees."
-                />
-
-                {skills.length ? (
+                <SectionTitle title="Capability by topic" description="Average score and number of affected employees." />
+                {coverage.length ? (
                   <div className="dh-skill-bars">
-                    {skills.map((skill) => (
-                      <div
-                        className="dh-skill-row"
-                        key={skill.name}
-                      >
+                    {coverage.map((skill) => (
+                      <div className="dh-skill-row" key={skill.name}>
                         <div>
                           <strong>{skill.name}</strong>
-                          <span>
-                            {skill.assessedEmployees} assessed ·{" "}
-                            {skill.employeesAtRisk} below 70%
-                          </span>
+                          <span>{skill.averageScore}% average · {skill.affectedEmployees} below 70%</span>
                         </div>
-
                         <div className="dh-skill-track">
-                          <span
-                            style={{
-                              width: `${Math.max(
-                                0,
-                                Math.min(100, skill.averageScore)
-                              )}%`,
-                            }}
-                          />
+                          <span style={{ width: `${Math.max(0, Math.min(100, skill.averageScore))}%` }} />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <EmptyState>
-                    No capability assessment data is available.
-                  </EmptyState>
+                  <EmptyState>No capability assessment data is available.</EmptyState>
                 )}
               </section>
             </>
@@ -888,105 +816,43 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="DEVELOPMENT OUTCOMES"
                 title="Learning & Mentoring Overview"
-                description="Aggregate participation derived from department learning enrollments, programmes and mentorship requests."
+                description="Participation of your assigned employees in learning and mentorship."
               />
 
               <div className="dh-metrics-grid">
-                <MetricCard
-                  icon="▤"
-                  label="Learning enrollments"
-                  value={training.totalEnrollments}
-                  hint="Saved enrollment records"
-                />
-
-                <MetricCard
-                  icon="✓"
-                  label="Completed"
-                  value={training.completed}
-                  hint="Status marked completed"
-                  tone="blue"
-                />
-
-                <MetricCard
-                  icon="◷"
-                  label="In progress"
-                  value={training.inProgress}
-                  hint="Status marked in progress"
-                  tone="orange"
-                />
-
-                <MetricCard
-                  icon="♧"
-                  label="Mentorship requests"
-                  value={mentoring.totalRequests}
-                  hint="Requests from department employees"
-                  tone="violet"
-                />
+                <MetricCard icon="▤" label="Learning enrollments" value={training.totalEnrollments} hint="Saved enrollment records" />
+                <MetricCard icon="✓" label="Completed" value={training.completed} hint="Status marked completed" tone="blue" />
+                <MetricCard icon="◷" label="In progress" value={training.inProgress} hint="Status marked in progress" tone="orange" />
+                <MetricCard icon="♧" label="Mentorship requests" value={mentoring.totalRequests} hint="From your employees" tone="violet" />
               </div>
 
               <div className="dh-two-column">
                 <section className="dh-panel">
-                  <SectionTitle
-                    title="Training programmes"
-                    description="Programmes explicitly assigned to this department."
-                  />
-
+                  <SectionTitle title="Training programmes" description="Programmes assigned to this department." />
                   {programmes.length ? (
                     <div className="dh-list">
                       {programmes.map((programme) => (
-                        <div
-                          className="dh-list-item"
-                          key={programme.id}
-                        >
+                        <div className="dh-list-item" key={programme.id}>
                           <div>
                             <strong>{programme.name}</strong>
-                            <span>
-                              {programme.competency ||
-                                "Competency not specified"}
-                            </span>
+                            <span>{programme.competency || "Competency not specified"}</span>
                           </div>
-
-                          <StatusPill
-                            status={programme.status}
-                          />
+                          <StatusPill status={programme.status} />
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <EmptyState>
-                      No department-specific training programmes are recorded.
-                    </EmptyState>
+                    <EmptyState>No department-specific training programmes are recorded.</EmptyState>
                   )}
                 </section>
 
                 <section className="dh-panel">
-                  <SectionTitle
-                    title="Mentoring activity"
-                    description="Request status totals for department employees."
-                  />
-
+                  <SectionTitle title="Mentoring activity" description="Request status for your employees." />
                   <div className="dh-learning-numbers">
-                    <div>
-                      <strong>{mentoring.pending || 0}</strong>
-                      <span>Pending</span>
-                    </div>
-
-                    <div>
-                      <strong>{mentoring.accepted || 0}</strong>
-                      <span>Accepted</span>
-                    </div>
-
-                    <div>
-                      <strong>{mentoring.completed || 0}</strong>
-                      <span>Completed</span>
-                    </div>
+                    <div><strong>{mentoring.pending || 0}</strong><span>Pending</span></div>
+                    <div><strong>{mentoring.accepted || 0}</strong><span>Accepted</span></div>
+                    <div><strong>{mentoring.completed || 0}</strong><span>Completed</span></div>
                   </div>
-
-                  <p className="dh-muted-note">
-                    This is based on mentorship request records;
-                    scheduled sessions and feedback are not represented
-                    unless separately stored.
-                  </p>
                 </section>
               </div>
             </>
@@ -997,37 +863,17 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="PRIORITY REVIEW"
                 title="Risk & Priority Alerts"
-                description="Assessment results below the configured score thresholds: critical below 40%, attention below 70%."
+                description="Latest results below the thresholds: critical below 40%, attention below 70%."
               />
 
               <div className="dh-metrics-grid">
-                <MetricCard
-                  icon="⚑"
-                  label="Critical results"
-                  value={summary.criticalGaps}
-                  hint="Score below 40%"
-                  tone="red"
-                />
-
-                <MetricCard
-                  icon="!"
-                  label="Attention results"
-                  value={summary.attentionResults}
-                  hint="Score from 40% to 69%"
-                  tone="orange"
-                />
-
-                <MetricCard
-                  icon="♙"
-                  label="Employees affected"
-                  value={summary.employeesWithGaps}
-                  hint="Distinct employees with a result below 70%"
-                  tone="violet"
-                />
+                <MetricCard icon="⚑" label="Critical results" value={summary.criticalResults} hint="Score below 40%" tone="red" />
+                <MetricCard icon="!" label="Attention results" value={summary.attentionResults} hint="Score from 40% to 69%" tone="orange" />
+                <MetricCard icon="♙" label="Employees affected" value={summary.employeesWithGaps} hint="Employees with a result below 70%" tone="violet" />
               </div>
 
               <section className="dh-panel">
-                {alerts.length ? (
+                {riskRows.length ? (
                   <div className="dh-table-wrap">
                     <table className="dh-table">
                       <thead>
@@ -1039,27 +885,16 @@ export default function DepartmentHeadDashboard() {
                           <th>Assessment date</th>
                         </tr>
                       </thead>
-
                       <tbody>
-                        {alerts.map((alert) => (
-                          <tr
-                            key={`${alert.email}-${alert.topic}`}
-                          >
+                        {riskRows.map((alert) => (
+                          <tr key={`${alert.email}-${alert.topic}`}>
+                            <td><StatusPill status={alert.status} /></td>
                             <td>
-                              <StatusPill status={alert.status} />
-                            </td>
-
-                            <td>
-                              {alert.employeeName}
+                              {alert.employee}
                               <small>{alert.email}</small>
                             </td>
-
                             <td>{alert.topic}</td>
-
-                            <td>
-                              <strong>{alert.score}%</strong>
-                            </td>
-
+                            <td><strong>{alert.score}%</strong></td>
                             <td>{dateLabel(alert.submittedAt)}</td>
                           </tr>
                         ))}
@@ -1068,7 +903,7 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 ) : (
                   <EmptyState>
-                    No risk alerts. This means there are no latest assessment results below 70%, or no assessment results have been recorded.
+                    No risk alerts: none of your employees has a latest result below 70%, or no assessments have been submitted yet.
                   </EmptyState>
                 )}
               </section>
@@ -1080,55 +915,54 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="DEPARTMENT REPORTING"
                 title="Reports & Analytics"
-                description="Export a CSV snapshot of the currently available department assessment and capability records."
+                description="Download a report for the employees assigned to you."
               />
 
               <section className="dh-panel dh-report-panel">
                 <div>
-                  <h3>Department capability report</h3>
+                  <h3>Team assessment report</h3>
                   <p>
-                    Includes skill averages, assessed employee counts,
-                    risk counts and latest assessment results.
+                    Includes the summary, every assigned employee, skill coverage,
+                    the full skill gap heatmap and all assessment records.
                   </p>
                 </div>
-
-                <button
-                  className="dh-primary-button"
-                  onClick={exportCsv}
-                >
-                  ↓ Export CSV report
+                <button className="dh-primary-button" onClick={exportReport}>
+                  ↓ Download CSV report
                 </button>
               </section>
 
               <div className="dh-metrics-grid">
-                <MetricCard
-                  icon="♙"
-                  label="Workforce"
-                  value={summary.totalWorkforce}
-                  hint={department.name || "Department"}
-                />
-
-                <MetricCard
-                  icon="▥"
-                  label="Skill topics"
-                  value={skills.length}
-                  hint="Topics with assessment records"
-                />
-
-                <MetricCard
-                  icon="✓"
-                  label="Assessment results"
-                  value={summary.totalAssessments}
-                  hint="Latest employee/topic results"
-                />
-
-                <MetricCard
-                  icon="◈"
-                  label="Training enrollments"
-                  value={training.totalEnrollments}
-                  hint="Saved records"
-                />
+                <MetricCard icon="♙" label="Assigned employees" value={summary.totalEmployees} hint={department.name || "Department"} />
+                <MetricCard icon="▥" label="Skill topics" value={coverage.length} hint="Topics with assessment records" />
+                <MetricCard icon="✓" label="Assessments" value={summary.totalAssessments} hint="Submitted by your employees" />
+                <MetricCard icon="◈" label="Average score" value={`${summary.averageScore ?? 0}%`} hint="Latest result per employee and topic" />
               </div>
+
+              <section className="dh-panel">
+                <SectionTitle title="Report preview" description="All assessment records included in the download." />
+                {assessments.length ? (
+                  <div className="dh-table-wrap">
+                    <table className="dh-table">
+                      <thead>
+                        <tr><th>Employee</th><th>Skill</th><th>Score</th><th>Result</th><th>Date</th></tr>
+                      </thead>
+                      <tbody>
+                        {assessments.map((item, index) => (
+                          <tr key={`${item.email}-${item.topic}-${index}`}>
+                            <td>{item.employee}</td>
+                            <td>{item.topic}</td>
+                            <td>{item.score}%</td>
+                            <td><StatusPill status={item.status} /></td>
+                            <td>{dateLabel(item.submittedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <EmptyState>No assessment records available for your employees yet.</EmptyState>
+                )}
+              </section>
             </>
           )}
 
@@ -1161,11 +995,11 @@ export default function DepartmentHeadDashboard() {
                   recipients={[
                     ...(data?.employees || []).map((person) => ({
                       ...person,
-                      name: [person.firstName, person.lastName].filter(Boolean).join(" "),
+                      name: displayName(person),
                     })),
                     ...(data?.mentors || []).map((person) => ({
                       ...person,
-                      name: [person.firstName, person.lastName].filter(Boolean).join(" "),
+                      name: displayName(person),
                     })),
                   ]}
                   type="DEPARTMENT_MESSAGE"
@@ -1173,10 +1007,10 @@ export default function DepartmentHeadDashboard() {
                   heading="Message department member"
                 />
                 <section className="dh-panel">
-                  <p className="dh-muted-note">Recipients are limited to approved employees and mentors in your assigned department.</p>
+                  <p className="dh-muted-note">Recipients are limited to the employees HR assigned to you and the mentors in your department.</p>
                 </section>
               </div>
-              <NotificationInbox roleLabel="Department workspace" onUnreadCountChange={setNotificationCount} />
+              <NotificationInbox roleLabel="Department workspace" />
             </>
           )}
 

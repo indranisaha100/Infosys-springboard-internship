@@ -216,6 +216,18 @@ public class HrManagementController {
                 || requirement.getCompetency() == null || requirement.getCompetency().isBlank()) {
             return bad("Role name and competency are required.");
         }
+        java.util.Optional<String> proficiency = com.knowledgegap.backend.service.RoleBenchmarkRules
+                .normalizeProficiency(requirement.getRequiredProficiency());
+        if (proficiency.isEmpty()) {
+            return bad("Target proficiency must be Beginner, Intermediate, Advanced, Expert or a percentage from 1 to 100.");
+        }
+        requirement.setRoleName(requirement.getRoleName().trim());
+        requirement.setCompetency(requirement.getCompetency().trim());
+        requirement.setRequiredProficiency(proficiency.get());
+        boolean duplicate = roleRequirements.findAllByOrderByRoleNameAsc().stream().anyMatch(existing ->
+                existing.getRoleName().trim().equalsIgnoreCase(requirement.getRoleName())
+                        && existing.getCompetency().trim().equalsIgnoreCase(requirement.getCompetency()));
+        if (duplicate) return bad("A benchmark for this role and competency already exists. Edit it instead.");
         requirement.setId(null);
         return ResponseEntity.status(HttpStatus.CREATED).body(roleRequirements.save(requirement));
     }

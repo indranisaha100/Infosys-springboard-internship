@@ -63,16 +63,6 @@ public class DepartmentHeadDashboardController {
                     .body(Map.of("message", "Department Head access is required."));
         }
 
-        if (departmentHead.getDepartment() == null
-                || departmentHead.getDepartment().isBlank()) {
-
-            return ResponseEntity.badRequest()
-                    .body(Map.of(
-                        "message",
-                        "Your account does not have a department assigned. Ask HR to update your department."
-                    ));
-        }
-
         return ResponseEntity.ok(
                 dashboardService.getDashboardData(departmentHead)
         );

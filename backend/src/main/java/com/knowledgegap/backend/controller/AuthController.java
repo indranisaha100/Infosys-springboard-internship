@@ -106,9 +106,6 @@ public class AuthController {
             String message = "PENDING".equalsIgnoreCase(user.getStatus()) || "NEEDS_DETAILS".equalsIgnoreCase(user.getStatus())
                     ? "Your registration is pending HR approval. You cannot access the dashboard yet."
                     : "This account is not active. Contact HR for assistance.";
-            if ("NEEDS_DETAILS".equalsIgnoreCase(user.getStatus()) && user.getReviewNote() != null && !user.getReviewNote().isBlank()) {
-                message += " HR requested: " + user.getReviewNote();
-            }
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("status", user.getStatus(), "message", message));
         }
         Map<String, Object> response = new HashMap<>();
@@ -142,9 +139,6 @@ public class AuthController {
         User user = optional.get();
         String action = clean(input.get("action")).toUpperCase(Locale.ROOT);
         String note = clean(input.get("note"));
-        if ("REQUEST_DETAILS".equals(action) && note.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Add a note describing the details HR needs."));
-        }
         user.setReviewNote(note);
         switch (action) {
             case "APPROVE" -> {
@@ -153,30 +147,9 @@ public class AuthController {
                 user.setUserId(makeUserId(user));
             }
             case "REJECT" -> user.setStatus("REJECTED");
-            case "REQUEST_DETAILS" -> user.setStatus("NEEDS_DETAILS");
-            default -> { return ResponseEntity.badRequest().body(Map.of("message", "Action must be APPROVE, REJECT, or REQUEST_DETAILS.")); }
+            default -> { return ResponseEntity.badRequest().body(Map.of("message", "Action must be APPROVE or REJECT.")); }
         }
         return ResponseEntity.ok(publicUser(userRepository.save(user)));
-    }
-
-    @PostMapping("/registration-request/details")
-    public ResponseEntity<?> submitRequestedDetails(@RequestBody Map<String, String> input) {
-        String email = clean(input.get("email")).toLowerCase(Locale.ROOT);
-        String password = input.get("password");
-        String details = clean(input.get("details"));
-        Optional<User> optional = userRepository.findByEmail(email);
-        if (optional.isEmpty() || password == null || !passwordEncoder.matches(password, optional.get().getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid email or password."));
-        }
-        User user = optional.get();
-        if (!"NEEDS_DETAILS".equals(user.getStatus())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "HR has not requested more details for this account."));
-        }
-        if (details.isBlank()) return ResponseEntity.badRequest().body(Map.of("message", "Enter the details HR requested."));
-        user.setReviewNote("Applicant response: " + details);
-        user.setStatus("PENDING");
-        userRepository.save(user);
-        return ResponseEntity.ok(Map.of("message", "Your details were submitted. Your registration is pending HR review again."));
     }
 
     private Map<String, Object> publicUser(User user) {

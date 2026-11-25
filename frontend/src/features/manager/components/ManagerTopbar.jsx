@@ -1,7 +1,7 @@
 
 import DashboardHeader from "../../../shared/components/DashboardHeader";
 
-export default function ManagerTopbar({ manager, notificationCount, onLogout, onMenuClick, menuExpanded }) {
+export default function ManagerTopbar({ manager, onLogout, onMenuClick, menuExpanded }) {
   const name = [
     manager?.firstName,
     manager?.lastName,
@@ -13,7 +13,6 @@ export default function ManagerTopbar({ manager, notificationCount, onLogout, on
       title="Manager Dashboard"
       name={name}
       initials={initials}
-      notificationCount={notificationCount}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       menuExpanded={menuExpanded}

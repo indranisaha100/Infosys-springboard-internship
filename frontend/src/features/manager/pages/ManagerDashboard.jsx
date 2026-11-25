@@ -8,7 +8,6 @@ import ManagerSidebar from "../components/ManagerSidebar";
 import ManagerTopbar from "../components/ManagerTopbar";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
 import NotificationComposer from "../../../shared/components/NotificationComposer";
-import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 
 import "../styles/ManagerDashboard.css";
 
@@ -86,7 +85,6 @@ export default function ManagerDashboard() {
       return null;
     }
   }, []);
-  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(user));
 
   async function loadDashboard() {
     setLoading(true);
@@ -268,7 +266,6 @@ export default function ManagerDashboard() {
       <ManagerSidebar
         activeSection={activeSection}
         isOpen={sidebarOpen}
-        notificationCount={notificationCount}
         onSectionChange={(section) => {
           setActiveSection(section);
           setSidebarOpen(false);
@@ -291,7 +288,6 @@ export default function ManagerDashboard() {
 
         <ManagerTopbar
           manager={manager}
-          notificationCount={notificationCount}
           onLogout={logout}
           onMenuClick={() => setSidebarOpen((open) => !open)}
           menuExpanded={sidebarOpen}
@@ -884,7 +880,7 @@ export default function ManagerDashboard() {
           )}
 
           {activeSection === "notifications" && (
-            <NotificationInbox roleLabel="Manager workspace" onUnreadCountChange={setNotificationCount} />
+            <NotificationInbox roleLabel="Manager workspace" />
           )}
 
           <footer className="manager-footer">

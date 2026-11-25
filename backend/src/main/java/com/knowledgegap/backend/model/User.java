@@ -28,6 +28,10 @@ public class User {
 
     private String requestedRole;
     private String department;
+
+    /** Department Head this employee was assigned to by HR (email). */
+    private String departmentHeadEmail;
+
     @Column(length = 2000)
     private String expertise;
 

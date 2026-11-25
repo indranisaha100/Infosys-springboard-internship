@@ -1,41 +1,12 @@
-import { useEffect, useState } from "react";
-import NotificationCountBadge from "./NotificationCountBadge";
-
 export default function DashboardHeader({
   title,
   name,
   initials,
-  notificationCount = 0,
   onProfileClick,
   onLogout,
   onMenuClick,
   menuExpanded = false,
 }) {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const date = now.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  const time = now.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  const avatar = (
-    <span className="workspace-header-avatar-wrap">
-      <span className="workspace-header-avatar" aria-hidden="true">{initials}</span>
-      <NotificationCountBadge count={notificationCount} className="header-notification-count" />
-    </span>
-  );
-
   return (
     <header className="workspace-header">
       {onMenuClick && (
@@ -51,19 +22,15 @@ export default function DashboardHeader({
         </button>
       )}
       <h1>{title}</h1>
-      <div className="workspace-header-datetime" aria-label={`${date}, ${time}`}>
-        <time dateTime={now.toISOString()}>{date}</time>
-        <time dateTime={now.toISOString()}>{time}</time>
-      </div>
       <div className="workspace-header-actions">
         {onProfileClick ? (
           <button type="button" className="workspace-header-profile" onClick={onProfileClick}>
-            {avatar}
+            <span className="workspace-header-avatar" aria-hidden="true">{initials}</span>
             <strong>{name}</strong>
           </button>
         ) : (
           <div className="workspace-header-profile">
-            {avatar}
+            <span className="workspace-header-avatar" aria-hidden="true">{initials}</span>
             <strong>{name}</strong>
           </div>
         )}

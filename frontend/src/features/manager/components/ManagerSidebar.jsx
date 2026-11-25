@@ -1,6 +1,5 @@
 
 import SidebarIcon from "../../../shared/components/SidebarIcon";
-import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard" },
@@ -18,7 +17,6 @@ export default function ManagerSidebar({
   activeSection,
   onSectionChange,
   isOpen = false,
-  notificationCount = 0,
 }) {
   return (
     <aside
@@ -52,7 +50,6 @@ export default function ManagerSidebar({
           >
             <SidebarIcon label={item.label} />
             {item.label}
-            {item.id === "notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}
           </button>
         ))}
       </nav>

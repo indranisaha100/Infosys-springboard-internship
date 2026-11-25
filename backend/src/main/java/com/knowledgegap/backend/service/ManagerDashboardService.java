@@ -28,25 +28,48 @@ public class ManagerDashboardService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getDashboardData(User manager) {
+        return getDashboardData(manager, null, null);
+    }
+
+    /**
+     * Same payload as the organisation-wide manager dashboard, optionally limited to a team.
+     * When scopedEmployees is null everyone is included (manager/HR behaviour).
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getDashboardData(
+            User manager, List<User> scopedEmployees, List<User> scopedMentors) {
 
         List<User> users = userRepository.findAll();
+        Map<String, User> usersByEmail = new HashMap<>();
+        for (User user : users) {
+            usersByEmail.putIfAbsent(normalize(user.getEmail()), user);
+        }
 
-        List<User> employees = users.stream()
+        List<User> employees = (scopedEmployees != null ? scopedEmployees : users.stream()
                 .filter(u -> "ROLE_EMPLOYEE".equals(u.getRole()))
+                .toList()).stream()
                 .sorted(Comparator.comparing(
                         u -> safe(u.getFirstName()) + safe(u.getLastName()),
                         String.CASE_INSENSITIVE_ORDER))
                 .toList();
 
-        List<User> mentors = users.stream()
+        List<User> mentors = (scopedMentors != null ? scopedMentors : users.stream()
                 .filter(u -> "ROLE_MENTOR".equals(u.getRole()))
+                .toList()).stream()
                 .sorted(Comparator.comparing(
                         u -> safe(u.getFirstName()) + safe(u.getLastName()),
                         String.CASE_INSENSITIVE_ORDER))
                 .toList();
+
+        Set<String> scopedEmails = scopedEmployees == null ? null : employees.stream()
+                .map(u -> normalize(u.getEmail()))
+                .collect(Collectors.toSet());
 
         List<AssessmentScore> scores =
-                assessmentScoreRepository.findAllByOrderBySubmittedAtDesc();
+                assessmentScoreRepository.findAllByOrderBySubmittedAtDesc().stream()
+                        .filter(s -> scopedEmails == null
+                                || scopedEmails.contains(normalize(s.getEmployeeEmail())))
+                        .toList();
 
         Map<String, List<AssessmentScore>> scoresByEmployee =
                 scores.stream().collect(Collectors.groupingBy(
@@ -72,9 +95,7 @@ public class ManagerDashboardService {
         List<Map<String, Object>> assessmentList = scores.stream()
                 .map(score -> {
 
-                    User employee = userRepository
-                            .findByEmail(score.getEmployeeEmail())
-                            .orElse(null);
+                    User employee = usersByEmail.get(normalize(score.getEmployeeEmail()));
 
                     int percentage = calculatePercentage(score);
 
@@ -195,9 +216,7 @@ public class ManagerDashboardService {
                         .limit(20)
                         .map(score -> {
 
-                            User employee = userRepository
-                                    .findByEmail(score.getEmployeeEmail())
-                                    .orElse(null);
+                            User employee = usersByEmail.get(normalize(score.getEmployeeEmail()));
 
                             Map<String, Object> alert =
                                     new LinkedHashMap<>();

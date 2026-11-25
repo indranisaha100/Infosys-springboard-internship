@@ -92,10 +92,6 @@
   text-align: center;
   font-size: 17px;
 }
-.dh-nav button .sidebar-notification-count {
-  width: auto;
-  font-size: 10px;
-}
 
 .dh-nav button:hover,
 .dh-nav button.active {

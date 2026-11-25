@@ -365,27 +365,11 @@ public class HrSkillGapAnalysisController {
 
     private List<RoleRequirement> requirementsFor(
             User employee, Map<String, List<RoleRequirement>> requirementsByRole) {
-        List<RoleRequirement> byDepartment = employee.getDepartment() == null ? null
-                : requirementsByRole.get(employee.getDepartment().trim().toLowerCase(Locale.ROOT));
-        if (byDepartment != null) return byDepartment;
-        String role = employee.getRequestedRole();
-        if (role == null) return null;
-        String normalizedRole = role.replaceFirst("(?i)^ROLE_", "")
-                .replace('_', ' ').trim().toLowerCase(Locale.ROOT);
-        return requirementsByRole.get(normalizedRole);
+        return com.knowledgegap.backend.service.RoleBenchmarkRules.requirementsFor(employee, requirementsByRole);
     }
 
     private int proficiencyPercent(String proficiency) {
-        if (proficiency == null) return 70;
-        String value = proficiency.toLowerCase(Locale.ROOT);
-        if (value.contains("beginner") || value.contains("basic")) return 50;
-        if (value.contains("advanced") || value.contains("expert")) return 90;
-        try {
-            int numeric = Integer.parseInt(value.replace("%", "").trim());
-            return Math.max(0, Math.min(100, numeric));
-        } catch (NumberFormatException ignored) {
-            return 70;
-        }
+        return com.knowledgegap.backend.service.RoleBenchmarkRules.toPercent(proficiency);
     }
 
     private Optional<User> bestMentor(List<User> mentors, String competency) {

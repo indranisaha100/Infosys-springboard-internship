@@ -4,7 +4,7 @@ import { request } from "../../../shared/services/api";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    name: "", email: "", password: "", confirmPassword: "", additionalDetails: "",
+    name: "", email: "", password: "", confirmPassword: "",
     requestedRole: "ROLE_EMPLOYEE", department: "",
   });
   const [error, setError] = useState("");
@@ -22,25 +22,16 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const [firstName, ...lastParts] = form.name.trim().split(/\s+/);
-      let result;
-      try {
-        result = await request("/auth/register", {
-          method: "POST",
-          body: JSON.stringify({
-            firstName, lastName: lastParts.join(" "), email: form.email,
-            password: form.password, requestedRole: form.requestedRole,
-            department: form.department,
-          }),
-        });
-      } catch (registrationError) {
-        if (!registrationError.message.includes("already exists") || !form.additionalDetails.trim()) throw registrationError;
-        result = await request("/auth/registration-request/details", {
-          method: "POST",
-          body: JSON.stringify({ email: form.email, password: form.password, details: form.additionalDetails }),
-        });
-      }
+      const result = await request("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          firstName, lastName: lastParts.join(" "), email: form.email,
+          password: form.password, requestedRole: form.requestedRole,
+          department: form.department,
+        }),
+      });
       setSuccess(result.message || "Registration received. Your request is pending HR approval.");
-      setForm({ name: "", email: "", password: "", confirmPassword: "", additionalDetails: "", requestedRole: "ROLE_EMPLOYEE", department: "" });
+      setForm({ name: "", email: "", password: "", confirmPassword: "", requestedRole: "ROLE_EMPLOYEE", department: "" });
     } catch (requestError) {
       setError(requestError.message);
     } finally { setLoading(false); }
@@ -63,7 +54,6 @@ export default function RegisterPage() {
         </label>
         <label>Password<input type="password" name="password" value={form.password} onChange={update} minLength="8" autoComplete="new-password" required /></label>
         <label>Confirm password<input type="password" name="confirmPassword" value={form.confirmPassword} onChange={update} minLength="8" autoComplete="new-password" required /></label>
-        <label>Details HR requested (if applicable)<textarea name="additionalDetails" value={form.additionalDetails} onChange={update} rows="3" /></label>
         {error && <p className="feedback error" role="alert">{error}</p>}
         {success && <p className="feedback" role="status">{success}</p>}
         <button className="primary-button" type="submit" disabled={loading}>{loading ? "Submitting..." : "Submit for HR review"}<span>→</span></button>

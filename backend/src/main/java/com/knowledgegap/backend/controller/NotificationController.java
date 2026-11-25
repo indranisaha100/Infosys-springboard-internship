@@ -41,6 +41,7 @@ public class NotificationController {
     private final JwtTokenProvider tokens;
     private final AssessmentScoreRepository assessments;
     private final ObjectMapper objectMapper;
+    private final com.knowledgegap.backend.service.DepartmentScopeService departmentScope;
 
     public NotificationController(
             HrNotificationRepository notifications,
@@ -48,7 +49,9 @@ public class NotificationController {
             UserRepository users,
             JwtTokenProvider tokens,
             AssessmentScoreRepository assessments,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            com.knowledgegap.backend.service.DepartmentScopeService departmentScope) {
+        this.departmentScope = departmentScope;
         this.notifications = notifications;
         this.reads = reads;
         this.users = users;
@@ -213,10 +216,7 @@ public class NotificationController {
             return "ROLE_MENTOR".equals(recipient.getRole()) ? List.of(recipient) : List.of();
         }
         if ("ROLE_DEPARTMENT_HEAD".equals(sender.getRole())) {
-            boolean eligibleRole = "ROLE_EMPLOYEE".equals(recipient.getRole())
-                    || "ROLE_MENTOR".equals(recipient.getRole());
-            return eligibleRole && sameDepartment(sender.getDepartment(), recipient.getDepartment())
-                    ? List.of(recipient) : List.of();
+            return departmentScope.isInScope(sender, recipient) ? List.of(recipient) : List.of();
         }
         return List.of();
     }

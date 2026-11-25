@@ -98,10 +98,6 @@
 .manager-nav button span {
   font-size: 17px;
 }
-.manager-nav button .sidebar-notification-count {
-  width: auto;
-  font-size: 10px;
-}
 
 .manager-nav button:hover,
 .manager-nav button.active {

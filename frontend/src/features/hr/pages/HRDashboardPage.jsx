@@ -5,11 +5,11 @@ import DashboardHeader from "../../../shared/components/DashboardHeader";
 import SidebarIcon from "../../../shared/components/SidebarIcon";
 import NotificationInbox from "../../../shared/components/NotificationInbox";
 import NotificationComposer from "../../../shared/components/NotificationComposer";
-import NotificationCountBadge from "../../../shared/components/NotificationCountBadge";
-import useUnreadNotificationCount from "../../../shared/hooks/useUnreadNotificationCount";
 import HrMentorAssignments from "../components/HrMentorAssignments";
+import HrDepartments from "../components/HrDepartments";
+import HrRoleBenchmarks from "../components/HrRoleBenchmarks";
 
-const sections = ["Dashboard", "Account Requests", "Employee Directory", "Mentor Directory", "Mentor Assignments", "Notifications", "Role Benchmarks"];
+const sections = ["Dashboard", "Account Requests", "Departments", "Employee Directory", "Mentor Directory", "Mentor Assignments", "Notifications", "Role Benchmarks"];
 
 const emerald = {
   primary: "#72CBA6",
@@ -175,21 +175,16 @@ export default function HRDashboardPage() {
   const [analysis, setAnalysis] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [mentors, setMentors] = useState([]);
-  const [roleRequirements, setRoleRequirements] = useState([]);
   const [requests, setRequests] = useState([]);
   const [mentorExpertise, setMentorExpertise] = useState({});
   const [search, setSearch] = useState("");
-  const [reviewNotes, setReviewNotes] = useState({});
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [savingMentor, setSavingMentor] = useState(null);
-  const [savingBenchmark, setSavingBenchmark] = useState(false);
-  const [benchmarkForm, setBenchmarkForm] = useState({ roleName: "", competency: "", requiredProficiency: "" });
   const [notificationRecipients, setNotificationRecipients] = useState([]);
   const [notificationRecipientError, setNotificationRecipientError] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [notificationCount, setNotificationCount] = useUnreadNotificationCount(Boolean(user));
 
   const loadWorkspace = useCallback(async () => {
     setLoading(true);
@@ -199,7 +194,6 @@ export default function HRDashboardPage() {
       request("/hr/employees"),
       request("/hr/mentors"),
       request("/auth/registration-requests"),
-      request("/hr/role-requirements"),
     ]);
     const failures = [];
     if (results[0].status === "fulfilled") setAnalysis(results[0].value);
@@ -215,8 +209,6 @@ export default function HRDashboardPage() {
     } else failures.push(`Mentor directory: ${displayError(results[2].reason)}`);
     if (results[3].status === "fulfilled") setRequests(results[3].value || []);
     else failures.push(`Account requests: ${displayError(results[3].reason)}`);
-    if (results[4].status === "fulfilled") setRoleRequirements(results[4].value || []);
-    else failures.push(`Role benchmarks: ${displayError(results[4].reason)}`);
     setError(failures.join(" "));
     setLoading(false);
   }, []);
@@ -254,10 +246,10 @@ export default function HRDashboardPage() {
     try {
       await request(`/auth/registration-requests/${id}/review`, {
         method: "POST",
-        body: JSON.stringify({ action, note: reviewNotes[id] || "" }),
+        body: JSON.stringify({ action }),
       });
       setRequests((current) => current.filter((item) => item.id !== id));
-      const outcome = { APPROVE: "approved", REQUEST_DETAILS: "returned for more details", REJECT: "rejected" };
+      const outcome = { APPROVE: "approved", REJECT: "rejected" };
       setSuccess(`Registration request ${outcome[action] || "updated"}.`);
     } catch (requestError) {
       setError(displayError(requestError));
@@ -299,27 +291,20 @@ export default function HRDashboardPage() {
     }
   }
 
-  async function createBenchmark(event) {
-    event.preventDefault();
-    setSavingBenchmark(true);
-    setError("");
-    setSuccess("");
+  async function loadEmployeesQuietly() {
     try {
-      const created = await request("/hr/role-requirements", {
-        method: "POST",
-        body: JSON.stringify({
-          roleName: benchmarkForm.roleName.trim(),
-          competency: benchmarkForm.competency.trim(),
-          requiredProficiency: benchmarkForm.requiredProficiency.trim(),
-        }),
-      });
-      setRoleRequirements((current) => [...current, created]);
-      setBenchmarkForm({ roleName: "", competency: "", requiredProficiency: "" });
-      setSuccess("Role benchmark saved. Re-run the analysis to use it.");
+      const result = await request("/hr/employees");
+      setEmployees(Array.isArray(result) ? result : result.employees || []);
     } catch (requestError) {
       setError(displayError(requestError));
-    } finally {
-      setSavingBenchmark(false);
+    }
+  }
+
+  async function refreshAnalysis() {
+    try {
+      setAnalysis(await request("/hr/skill-gap-analysis"));
+    } catch (requestError) {
+      setError(displayError(requestError));
     }
   }
 
@@ -334,7 +319,7 @@ export default function HRDashboardPage() {
       >
         <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#50C878] text-[#073d37]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 17V13M12 17V8M18 17V5" /></svg></span><span className="max-lg:hidden"><strong className="block text-lg">SkillTrack</strong><small className="text-[10px] text-[#A3E4D7]">HR workspace</small></span></div>
         <p className="mb-3 mt-9 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-[#A3E4D7] max-lg:hidden">HR workspace</p>
-        <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSidebarOpen(false); setSearch(""); setError(""); setSuccess(""); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><SidebarIcon label={section} /><span className="max-lg:hidden">{section}</span>{section === "Notifications" && <NotificationCountBadge count={notificationCount} className="sidebar-notification-count" />}</button>)}</nav>
+        <nav className="space-y-1" aria-label="HR workspace">{sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSidebarOpen(false); setSearch(""); setError(""); setSuccess(""); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeSection === section ? "bg-[#208967] font-semibold text-white" : "text-emerald-50 hover:bg-white/10"}`}><SidebarIcon label={section} /><span className="max-lg:hidden">{section}</span></button>)}</nav>
       </aside>
 
       {sidebarOpen && (
@@ -351,13 +336,12 @@ export default function HRDashboardPage() {
           title="HR Dashboard"
           name={`${user.firstName || user.email}${user.lastName ? ` ${user.lastName}` : ""}`}
           initials={`${user.firstName?.[0] || "H"}${user.lastName?.[0] || ""}`.toUpperCase()}
-          notificationCount={notificationCount}
           onLogout={signOut}
           onMenuClick={() => setSidebarOpen((open) => !open)}
           menuExpanded={sidebarOpen}
         />
         <nav className="grid grid-cols-2 gap-2 border-b border-[#A3E4D7] bg-white p-3 md:hidden" aria-label="Mobile HR workspace">
-          {sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${activeSection === section ? "bg-[#208967] text-white" : "bg-[#E8F8F5] text-[#0F5257]"}`}>{section}{section === "Notifications" && <NotificationCountBadge count={notificationCount} className="ml-2 align-middle" />}</button>)}
+          {sections.map((section) => <button key={section} onClick={() => { setActiveSection(section); setSearch(""); setError(""); setSuccess(""); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${activeSection === section ? "bg-[#208967] text-white" : "bg-[#E8F8F5] text-[#0F5257]"}`}>{section}</button>)}
         </nav>
         <div className="mx-auto max-w-[1440px] px-8 pb-12 pt-7 max-md:px-4">
           {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
@@ -366,13 +350,11 @@ export default function HRDashboardPage() {
             <Dashboard analysis={analysis} onGenerate={generatePlans} generating={generating}/>
           ) : activeSection === "Account Requests" ? (
             <section className="rounded-2xl border border-[#A3E4D7] bg-white p-5">
-              <div className="mb-5"><h2 className="m-0 text-lg font-semibold text-[#0F5257]">Account requests</h2><p className="mt-1 text-xs text-slate-500">Approve requested roles, reject requests, or ask applicants to provide more details.</p></div>
+              <div className="mb-5"><h2 className="m-0 text-lg font-semibold text-[#0F5257]">Account requests</h2><p className="mt-1 text-xs text-slate-500">Review each registration and approve or reject it.</p></div>
               {requests.length ? <div className="grid gap-3 lg:grid-cols-2">{requests.map((item) => <article key={item.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2"><div><strong className="text-sm">{item.name || item.email}</strong><p className="mt-1 text-xs text-slate-500">{item.email}</p></div><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">{(item.status || "").replaceAll("_", " ")}</span></div>
                 <p className="mt-3 text-xs text-slate-600">Requested: {String(item.requestedRole || "").replace("ROLE_", "").replaceAll("_", " ")} · {item.department || "No department"}</p>
-                {item.reviewNote && <p className="mt-2 text-xs text-slate-500">HR note: {item.reviewNote}</p>}
-                <textarea aria-label={`HR note for ${item.email}`} placeholder="Optional note for the applicant" value={reviewNotes[item.id] || ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [item.id]: event.target.value }))} rows="2" className="mt-3 w-full rounded-lg border border-slate-200 p-2 text-xs"/>
-                <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => reviewRegistration(item.id, "APPROVE")} className="rounded-lg bg-[#2ECC71] px-3 py-2 text-xs font-semibold text-[#073d37]">Approve</button><button onClick={() => reviewRegistration(item.id, "REQUEST_DETAILS")} disabled={!reviewNotes[item.id]?.trim()} className="rounded-lg bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">Request details</button><button onClick={() => reviewRegistration(item.id, "REJECT")} className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">Reject</button></div>
+                <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => reviewRegistration(item.id, "APPROVE")} className="rounded-lg bg-[#2ECC71] px-3 py-2 text-xs font-semibold text-[#073d37]">Approve</button><button onClick={() => reviewRegistration(item.id, "REJECT")} className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">Reject</button></div>
               </article>)}</div> : <p className="rounded-xl bg-[#E8F8F5] p-8 text-center text-sm text-slate-500">No registration requests to review.</p>}
             </section>
           ) : activeSection === "Employee Directory" ? (
@@ -403,20 +385,12 @@ export default function HRDashboardPage() {
                 metadata={{ source: "hr-dashboard" }}
                 heading="Create and send notification"
               />
-              <NotificationInbox roleLabel="HR workspace" onUnreadCountChange={setNotificationCount} />
+              <NotificationInbox roleLabel="HR workspace" />
             </section>
+          ) : activeSection === "Departments" ? (
+            <HrDepartments onChanged={loadEmployeesQuietly} />
           ) : (
-            <section className="rounded-2xl border border-[#A3E4D7] bg-white p-5">
-              <div className="mb-5"><h2 className="m-0 text-lg font-semibold text-[#0F5257]">Role benchmarks</h2><p className="mt-1 text-xs text-slate-500">Use an employee department or requested role as the role name. Proficiency accepts Beginner, Intermediate, Advanced, or a percentage.</p></div>
-              <form onSubmit={createBenchmark} className="grid gap-3 rounded-xl bg-[#f4fbf8] p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
-                <label className="text-xs font-semibold text-slate-600">Role / department<input required value={benchmarkForm.roleName} onChange={(event) => setBenchmarkForm((form) => ({ ...form, roleName: event.target.value }))} placeholder="Engineering" className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-normal"/></label>
-                <label className="text-xs font-semibold text-slate-600">Competency<input required value={benchmarkForm.competency} onChange={(event) => setBenchmarkForm((form) => ({ ...form, competency: event.target.value }))} placeholder="Java" className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-normal"/></label>
-                <label className="text-xs font-semibold text-slate-600">Target proficiency<input required value={benchmarkForm.requiredProficiency} onChange={(event) => setBenchmarkForm((form) => ({ ...form, requiredProficiency: event.target.value }))} placeholder="Advanced or 90%" className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-normal"/></label>
-                <button disabled={savingBenchmark} className="self-end rounded-lg bg-[#0F5257] px-4 py-3 text-xs font-semibold text-white disabled:opacity-60">{savingBenchmark ? "Saving…" : "Add benchmark"}</button>
-              </form>
-              <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[480px] border-collapse text-left text-xs"><thead><tr className="border-b border-slate-100 text-[10px] uppercase tracking-wide text-slate-400"><th className="py-3">Role / department</th><th className="py-3">Competency</th><th className="py-3">Target</th></tr></thead><tbody>{roleRequirements.map((benchmark) => <tr key={benchmark.id} className="border-b border-slate-50"><td className="py-3">{benchmark.roleName}</td><td className="py-3">{benchmark.competency}</td><td className="py-3">{benchmark.requiredProficiency}</td></tr>)}</tbody></table></div>
-              {!roleRequirements.length && <p className="mt-4 rounded-xl bg-[#E8F8F5] p-5 text-sm text-slate-500">No role benchmarks have been configured yet.</p>}
-            </section>
+            <HrRoleBenchmarks onChanged={refreshAnalysis} />
           )}
         </div>
       </section>
