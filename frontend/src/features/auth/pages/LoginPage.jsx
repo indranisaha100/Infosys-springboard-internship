@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AuthLayout from "../../../shared/components/AuthLayout";
+import PasswordInput from "../../../shared/components/PasswordInput";
 import { request, saveSession } from "../../../shared/services/api";
 
 export default function LoginPage() {
@@ -97,17 +98,17 @@ export default function LoginPage() {
           />
         </label>
 
-        <label>
-          Password
-
-          <input
-            type="password"
+        <div className="auth-password-field">
+          <label htmlFor="login-password">Password</label>
+          <PasswordInput
+            id="login-password"
             name="password"
             value={form.password}
             onChange={update}
+            autoComplete="current-password"
             required
           />
-        </label>
+        </div>
 
         {error && (
           <p className="feedback error">

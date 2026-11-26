@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthLayout from "../../../shared/components/AuthLayout";
+import PasswordInput from "../../../shared/components/PasswordInput";
 import { request } from "../../../shared/services/api";
 
 export default function InitialHrSetupPage() {
@@ -33,8 +34,14 @@ export default function InitialHrSetupPage() {
         <label>Full name<input name="name" value={form.name} onChange={update} required /></label>
         <label>Official email<input type="email" name="email" value={form.email} onChange={update} required /></label>
         <label>Department<input name="department" value={form.department} onChange={update} required /></label>
-        <label>Password (at least 12 characters)<input type="password" name="password" value={form.password} onChange={update} minLength="12" required /></label>
-        <label>Confirm password<input type="password" name="confirmPassword" value={form.confirmPassword} onChange={update} minLength="12" required /></label>
+        <div className="auth-password-field">
+          <label htmlFor="setup-password">Password (at least 12 characters)</label>
+          <PasswordInput id="setup-password" name="password" value={form.password} onChange={update} minLength="12" required />
+        </div>
+        <div className="auth-password-field">
+          <label htmlFor="setup-confirm-password">Confirm password</label>
+          <PasswordInput id="setup-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={update} minLength="12" required />
+        </div>
         <label>One-time setup key<input type="password" name="setupKey" value={form.setupKey} onChange={update} required /></label>
         {error && <p className="feedback error" role="alert">{error}</p>}
         <button className="primary-button" type="submit" disabled={loading}>{loading ? "Creating HR account..." : "Create initial HR account"}</button>

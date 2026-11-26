@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AuthLayout from "../../../shared/components/AuthLayout";
+import PasswordInput from "../../../shared/components/PasswordInput";
 import { request } from "../../../shared/services/api";
 
 export default function RegisterPage() {
@@ -52,8 +53,14 @@ export default function RegisterPage() {
             <option value="ROLE_DEPARTMENT_HEAD">Department Head</option>
           </select>
         </label>
-        <label>Password<input type="password" name="password" value={form.password} onChange={update} minLength="8" autoComplete="new-password" required /></label>
-        <label>Confirm password<input type="password" name="confirmPassword" value={form.confirmPassword} onChange={update} minLength="8" autoComplete="new-password" required /></label>
+        <div className="auth-password-field">
+          <label htmlFor="register-password">Password</label>
+          <PasswordInput id="register-password" name="password" value={form.password} onChange={update} minLength="8" autoComplete="new-password" required />
+        </div>
+        <div className="auth-password-field">
+          <label htmlFor="register-confirm-password">Confirm password</label>
+          <PasswordInput id="register-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={update} minLength="8" autoComplete="new-password" required />
+        </div>
         {error && <p className="feedback error" role="alert">{error}</p>}
         {success && <p className="feedback" role="status">{success}</p>}
         <button className="primary-button" type="submit" disabled={loading}>{loading ? "Submitting..." : "Submit for HR review"}<span>→</span></button>
