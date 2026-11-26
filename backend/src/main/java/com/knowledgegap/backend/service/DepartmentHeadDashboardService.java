@@ -1,16 +1,21 @@
 package com.knowledgegap.backend.service;
 
 import com.knowledgegap.backend.model.LearningEnrollment;
-import com.knowledgegap.backend.model.MentorshipRequest;
+import com.knowledgegap.backend.model.MentorAssignment;
+import com.knowledgegap.backend.model.MentoringSession;
 import com.knowledgegap.backend.model.TrainingProgramme;
 import com.knowledgegap.backend.model.User;
 import com.knowledgegap.backend.repository.LearningEnrollmentRepository;
+import com.knowledgegap.backend.repository.MentorAssignmentRepository;
+import com.knowledgegap.backend.repository.MentoringSessionRepository;
 import com.knowledgegap.backend.repository.MentorshipRequestRepository;
 import com.knowledgegap.backend.repository.TrainingProgrammeRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -28,19 +33,25 @@ public class DepartmentHeadDashboardService {
     private final ManagerDashboardService managerDashboardService;
     private final DepartmentScopeService scope;
     private final LearningEnrollmentRepository learningEnrollmentRepository;
+    private final MentorAssignmentRepository mentorAssignmentRepository;
     private final MentorshipRequestRepository mentorshipRequestRepository;
+    private final MentoringSessionRepository mentoringSessionRepository;
     private final TrainingProgrammeRepository trainingProgrammeRepository;
 
     public DepartmentHeadDashboardService(
             ManagerDashboardService managerDashboardService,
             DepartmentScopeService scope,
             LearningEnrollmentRepository learningEnrollmentRepository,
+            MentorAssignmentRepository mentorAssignmentRepository,
             MentorshipRequestRepository mentorshipRequestRepository,
+            MentoringSessionRepository mentoringSessionRepository,
             TrainingProgrammeRepository trainingProgrammeRepository) {
         this.managerDashboardService = managerDashboardService;
         this.scope = scope;
         this.learningEnrollmentRepository = learningEnrollmentRepository;
+        this.mentorAssignmentRepository = mentorAssignmentRepository;
         this.mentorshipRequestRepository = mentorshipRequestRepository;
+        this.mentoringSessionRepository = mentoringSessionRepository;
         this.trainingProgrammeRepository = trainingProgrammeRepository;
     }
 
@@ -85,30 +96,52 @@ public class DepartmentHeadDashboardService {
                 .filter(e -> e.getEmployeeEmail() != null
                         && emails.contains(e.getEmployeeEmail().toLowerCase(Locale.ROOT)))
                 .toList();
-        long completed = enrollments.stream().filter(e -> statusIs(e.getStatus(), "COMPLETED")).count();
-        long inProgress = enrollments.stream().filter(e -> statusIs(e.getStatus(), "IN_PROGRESS")).count();
+        long completed = enrollments.stream().filter(e -> LearningProgressService.COMPLETED
+                .equals(LearningProgressService.normalizeStatus(e.getStatus()))).count();
+        long inProgress = enrollments.stream().filter(e -> LearningProgressService.IN_PROGRESS
+                .equals(LearningProgressService.normalizeStatus(e.getStatus()))).count();
         long enrolledEmployees = enrollments.stream()
                 .map(e -> e.getEmployeeEmail().toLowerCase(Locale.ROOT)).distinct().count();
+        int averageProgress = enrollments.isEmpty() ? 0 : (int) Math.round(enrollments.stream()
+                .mapToInt(LearningEnrollment::getProgressPercent).average().orElse(0));
         Map<String, Object> learning = new LinkedHashMap<>();
         learning.put("totalEnrollments", enrollments.size());
         learning.put("completed", completed);
         learning.put("inProgress", inProgress);
         learning.put("pending", Math.max(0, enrollments.size() - completed - inProgress));
         learning.put("enrolledEmployees", enrolledEmployees);
+        learning.put("averageProgress", averageProgress);
         learning.put("adoptionRate", employees.isEmpty() ? 0
                 : Math.round(enrolledEmployees * 1000.0 / employees.size()) / 10.0);
         result.put("learning", learning);
 
-        // Mentoring
-        List<MentorshipRequest> requests = mentorshipRequestRepository.findAll().stream()
+        // Use the active relationships and sessions shown in employee and mentor workspaces.
+        Set<String> activeRelationships = mentorAssignmentRepository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(a -> a.getEmployeeEmail() != null
+                        && emails.contains(a.getEmployeeEmail().toLowerCase(Locale.ROOT)))
+                .filter(a -> "ACTIVE".equalsIgnoreCase(a.getStatus() == null ? "" : a.getStatus().trim()))
+                .map(a -> relationshipKey(a.getEmployeeEmail(), a.getMentorEmail()))
+                .collect(Collectors.toSet());
+        mentorshipRequestRepository.findAll().stream()
                 .filter(r -> r.getEmployeeEmail() != null
                         && emails.contains(r.getEmployeeEmail().toLowerCase(Locale.ROOT)))
+                .filter(r -> "ACCEPTED".equalsIgnoreCase(r.getStatus() == null ? "" : r.getStatus().trim()))
+                .map(r -> relationshipKey(r.getEmployeeEmail(), r.getMentorEmail()))
+                .forEach(activeRelationships::add);
+        Instant now = Instant.now();
+        List<MentoringSession> sessions = mentoringSessionRepository.findAll().stream()
+                .filter(s -> s.getEmployeeEmail() != null
+                        && emails.contains(s.getEmployeeEmail().toLowerCase(Locale.ROOT)))
                 .toList();
         Map<String, Object> mentoring = new LinkedHashMap<>();
-        mentoring.put("totalRequests", requests.size());
-        mentoring.put("pending", countStatus(requests, "PENDING"));
-        mentoring.put("accepted", countStatus(requests, "ACCEPTED"));
-        mentoring.put("completed", countStatus(requests, "COMPLETED"));
+        mentoring.put("activeRelationships", activeRelationships.size());
+        mentoring.put("upcomingSessions", sessions.stream()
+                .filter(s -> "SCHEDULED".equalsIgnoreCase(s.getStatus()))
+                .filter(s -> s.getScheduledAt().plus(Duration.ofMinutes(s.getDurationMinutes())).isAfter(now))
+                .count());
+        mentoring.put("completedSessions", sessions.stream()
+                .filter(s -> "COMPLETED".equalsIgnoreCase(s.getStatus()))
+                .count());
         result.put("mentoring", mentoring);
 
         // Programmes for this department
@@ -134,13 +167,8 @@ public class DepartmentHeadDashboardService {
         return result;
     }
 
-    private boolean statusIs(String status, String expected) {
-        return status != null && expected.equals(status.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
-    }
-
-    private long countStatus(List<MentorshipRequest> requests, String expected) {
-        return requests.stream().filter(r -> expected.equalsIgnoreCase(
-                r.getStatus() == null ? "" : r.getStatus().trim())).count();
+    private String relationshipKey(String employeeEmail, String mentorEmail) {
+        return employeeEmail.toLowerCase(Locale.ROOT) + "|" + mentorEmail.toLowerCase(Locale.ROOT);
     }
 
     private Map<String, Object> programmeRow(TrainingProgramme programme) {

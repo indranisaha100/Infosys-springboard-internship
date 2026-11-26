@@ -19,7 +19,6 @@ const NAV_ITEMS = [
   { id: "learning", label: "Learning & Mentoring" },
   { id: "risks", label: "Risk & Priority Alerts" },
   { id: "reports", label: "Reports & Analytics" },
-  { id: "announcements", label: "Announcements" },
   { id: "notifications", label: "Notifications" },
 ];
 
@@ -821,14 +820,14 @@ export default function DepartmentHeadDashboard() {
               <SectionTitle
                 eyebrow="DEVELOPMENT OUTCOMES"
                 title="Learning & Mentoring Overview"
-                description="Participation of your assigned employees in learning and mentorship."
+                description="Live learning enrollments, active mentor relationships, and sessions for your assigned employees."
               />
 
               <div className="dh-metrics-grid">
                 <MetricCard icon="▤" label="Learning enrollments" value={training.totalEnrollments} hint="Saved enrollment records" />
                 <MetricCard icon="✓" label="Completed" value={training.completed} hint="Status marked completed" tone="blue" />
                 <MetricCard icon="◷" label="In progress" value={training.inProgress} hint="Status marked in progress" tone="orange" />
-                <MetricCard icon="♧" label="Mentorship requests" value={mentoring.totalRequests} hint="From your employees" tone="violet" />
+                <MetricCard icon="♧" label="Active mentor relationships" value={mentoring.activeRelationships} hint="Current employee-to-mentor connections" tone="violet" />
               </div>
 
               <div className="dh-two-column">
@@ -852,11 +851,11 @@ export default function DepartmentHeadDashboard() {
                 </section>
 
                 <section className="dh-panel">
-                  <SectionTitle title="Mentoring activity" description="Request status for your employees." />
+                  <SectionTitle title="Mentoring activity" description="Live assignments and sessions shared with employee and mentor workspaces." />
                   <div className="dh-learning-numbers">
-                    <div><strong>{mentoring.pending || 0}</strong><span>Pending</span></div>
-                    <div><strong>{mentoring.accepted || 0}</strong><span>Accepted</span></div>
-                    <div><strong>{mentoring.completed || 0}</strong><span>Completed</span></div>
+                    <div><strong>{mentoring.activeRelationships || 0}</strong><span>Active relationships</span></div>
+                    <div><strong>{mentoring.upcomingSessions || 0}</strong><span>Upcoming sessions</span></div>
+                    <div><strong>{mentoring.completedSessions || 0}</strong><span>Completed sessions</span></div>
                   </div>
                 </section>
               </div>
@@ -967,22 +966,6 @@ export default function DepartmentHeadDashboard() {
                 ) : (
                   <EmptyState>No assessment records available for your employees yet.</EmptyState>
                 )}
-              </section>
-            </>
-          )}
-
-          {activeSection === "announcements" && (
-            <>
-              <SectionTitle
-                eyebrow="DEPARTMENT COMMUNICATION"
-                title="Announcements"
-                description="Department announcements are shown here when an authorised announcement workflow is connected."
-              />
-
-              <section className="dh-panel">
-                <EmptyState>
-                  The current project data model does not provide a department announcement feed yet. No announcements are fabricated.
-                </EmptyState>
               </section>
             </>
           )}
