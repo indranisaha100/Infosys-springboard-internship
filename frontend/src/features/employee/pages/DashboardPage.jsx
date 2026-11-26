@@ -179,31 +179,100 @@ function MentorshipRequestsPage({ data, onRefresh }) {
   const [mentorEmail, setMentorEmail] = useState("");
   const [message, setMessage] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [saving, setSaving] = useState(false);
+  const mentors = Array.isArray(data?.mentors) ? data.mentors : [];
+  const requests = Array.isArray(data?.requests) ? data.requests : [];
+  const selectedMentor = mentors.find((mentor) => mentor.email.toLowerCase() === mentorEmail.toLowerCase());
+  const existingRequest = requests.find((item) => item.mentorEmail.toLowerCase() === mentorEmail.toLowerCase());
+  const requestStatus = existingRequest?.status?.toUpperCase();
+
+  function chooseMentor(event) {
+    const email = event.target.value;
+    const requestForMentor = requests.find((item) => item.mentorEmail.toLowerCase() === email.toLowerCase());
+    setMentorEmail(email);
+    setMessage(requestForMentor?.message || "");
+    setFeedback("");
+  }
+
   async function submit(event) {
     event.preventDefault();
     setFeedback("");
+    setSaving(true);
     try {
-      await request("/mentorship/requests", {
-        method: "POST",
-        body: JSON.stringify({ mentorEmail, message }),
-      });
-      setMentorEmail("");
-      setMessage("");
-      setFeedback("Mentorship request sent.");
-      onRefresh();
+      if (requestStatus === "PENDING" && existingRequest) {
+        await request(`/mentorship/requests/${existingRequest.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ message }),
+        });
+        setFeedback("Mentorship request updated.");
+      } else {
+        await request("/mentorship/requests", {
+          method: "POST",
+          body: JSON.stringify({ mentorEmail, message }),
+        });
+        setFeedback(existingRequest ? "Mentorship request updated and sent again." : "Mentorship request sent.");
+      }
+      await onRefresh();
     } catch (error) {
-      setFeedback(error.message);
+      const message = error.message.replace(/^HTTP \d+: /, "");
+      setFeedback(error.status ? `Request failed (HTTP ${error.status}): ${message}` : message);
+    } finally {
+      setSaving(false);
     }
   }
+
   return <div className="mx-auto max-w-[1100px] px-8 pb-14 pt-8 max-[650px]:px-4">
-    <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Mentorship Requests</p><h1 className="m-0 text-2xl font-medium text-blue-950">Mentorship Requests</h1><p className="mt-2 text-xs text-slate-500">Request support from an available mentor using their approved account email.</p></div>
-    <form onSubmit={submit} className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
-      <label className="text-xs">Mentor email<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" type="email" value={mentorEmail} onChange={(event) => setMentorEmail(event.target.value)} required /></label>
-      <label className="text-xs">Message<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What would you like help with?" /></label>
-      <button className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white sm:col-span-2">Send request</button>
-      {feedback && <p className="text-xs text-slate-600 sm:col-span-2" role="status">{feedback}</p>}
-    </form>
-    <SectionPage activeItem="Your requests" data={data} loading={false} />
+    <div className="mb-5"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-500">My workspace / Mentorship Requests</p><h1 className="m-0 text-2xl font-medium text-blue-950">Mentorship Requests</h1><p className="mt-2 text-xs text-slate-500">Choose an approved mentor by name. You can have one request per mentor and edit it while it is pending.</p></div>
+    {!data ? <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500" role="status">Loading approved mentors and your requests…</p>
+      : data.error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700" role="alert">{data.error}</p>
+        : <form onSubmit={submit} className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
+          <label className="text-xs">Mentor
+            <select className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" value={mentorEmail} onChange={chooseMentor} required>
+              <option value="">Choose an approved mentor</option>
+              {mentors.map((mentor) => {
+                const requestForMentor = requests.find((item) => item.mentorEmail.toLowerCase() === mentor.email.toLowerCase());
+                const status = requestForMentor?.status?.toUpperCase();
+                return <option key={mentor.email} value={mentor.email} disabled={status === "ACCEPTED"}>
+                  {mentor.name}{status ? ` · ${status.toLowerCase()}` : ""}
+                </option>;
+              })}
+            </select>
+          </label>
+          {requestStatus === "ACCEPTED" ? (
+            <p className="m-0 self-end text-xs text-emerald-700 sm:col-span-2" role="status">
+              {selectedMentor?.name} has already accepted your request.
+            </p>
+          ) : <>
+            <label className="text-xs">Message
+              <input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" maxLength="2000" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What would you like help with?" />
+            </label>
+            <button className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50 sm:col-span-2" disabled={saving || !mentors.length}>
+              {saving ? "Saving…" : requestStatus === "PENDING" ? "Update request" : existingRequest ? "Update and resend request" : "Send request"}
+            </button>
+          </>}
+          {mentors.length === 0 && <p className="text-xs text-slate-500 sm:col-span-2">No approved mentors are available yet.</p>}
+          {feedback && <p className="text-xs text-slate-600 sm:col-span-2" role="status">{feedback}</p>}
+        </form>}
+    {requests.length > 0 && <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <h2 className="mb-3 text-sm font-semibold text-blue-950">Your requests</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {requests.map((item) => {
+          const mentor = mentors.find((entry) => entry.email.toLowerCase() === item.mentorEmail.toLowerCase());
+          return <article key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <strong className="text-blue-950">{mentor?.name || item.mentorEmail}</strong>
+              <span className="rounded-full bg-white px-2 py-1 text-[10px] text-slate-600">{item.status?.toLowerCase()}</span>
+            </div>
+            <p className="mb-0 mt-2 text-slate-600">{item.message || "No message provided."}</p>
+            {item.status?.toUpperCase() === "PENDING" && <button type="button" className="mt-3 font-semibold text-blue-600" onClick={() => {
+              setMentorEmail(item.mentorEmail);
+              setMessage(item.message || "");
+              setFeedback("");
+            }}>Edit request</button>}
+          </article>;
+        })}
+      </div>
+    </section>}
   </div>;
 }
 
@@ -508,15 +577,22 @@ export default function DashboardPage() {
       return;
     }
     if (label === "Mentorship Requests") {
+      setSectionData(null);
       setSectionLoading(true);
       try {
-        const requests = await request("/mentorship/requests");
+        const [requests, mentors] = await Promise.all([
+          request("/mentorship/requests"),
+          request("/chat/mentors"),
+        ]);
+        if (!Array.isArray(requests) || !Array.isArray(mentors)) {
+          throw new Error("The mentorship data returned an invalid response.");
+        }
         setSectionData({
-          message: requests.length ? "Your mentorship requests" : "You have not sent any mentorship requests yet.",
-          items: requests.map((item) => `${item.mentorEmail} · ${item.status}`),
+          requests: requests.filter((item) => item.employeeEmail?.toLowerCase() === user.email.toLowerCase()),
+          mentors,
         });
       } catch (error) {
-        setSectionData({ message: error.message });
+        setSectionData({ error: error.message });
       } finally {
         setSectionLoading(false);
       }

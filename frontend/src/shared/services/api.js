@@ -82,10 +82,15 @@ export async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message =
-      typeof body === "string"
-        ? body
-        : body?.message || body?.error || JSON.stringify(body);
+    const responseMessage =
+      body === null
+        ? "The server returned an empty error response."
+        : typeof body === "string"
+          ? body
+          : body?.message || body?.error || JSON.stringify(body);
+    const message = responseMessage && responseMessage !== "null"
+      ? responseMessage
+      : "The server returned an empty error response.";
 
     console.error("API Error:", {
       url: `${API_BASE_URL}${path}`,
